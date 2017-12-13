@@ -29,7 +29,7 @@ def api_call(apiCommand, accKey, encKey, call_type="GET"):
     datetime.datetime.utcnow(), "%Y-%m-%dT%H:%M:%SZ")
   payload = bytes(accKey + timeStamp, "utf-8")
   signature = hmac.new(bytes(encKey, "utf-8"), payload, digestmod=hashlib.sha256)
-  head = {"AccKeyId":accKey, 
+  head = {"AccessKeyId":accKey, 
           "Signature":signature.hexdigest(), 
           "TimeStamp":timeStamp}
   sleep(1)
@@ -47,8 +47,8 @@ def api_call(apiCommand, accKey, encKey, call_type="GET"):
 # 1. Store your access key, encryption key, and basket name.
 # Get your keys at:
 # https://www.economy.com/myeconomy/api-key-info
-ENC_KEY = "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
 ACC_KEY = "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+ENC_KEY = "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
 BASKET_NAME = "Test Basket"
 
 #####
@@ -99,3 +99,4 @@ num_rows = str(len(data_df.index))
 num_columns = str(len(data_df.columns))
 print("Ready to use "+ BASKET_NAME + " DataFrame!")
 print("DataFrame contains: " + num_columns + " columns & " + num_rows + " rows")
+

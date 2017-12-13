@@ -25,14 +25,14 @@ api.call <- function(apiCommand, accKey, encKey, type="GET"){
   timeStamp <- format(as.POSIXct(Sys.time()), "%Y-%m-%dT%H:%M:%SZ", tz="UTC")
   hashMsg   <- paste(accKey, timeStamp, sep="")
   signature <- hmac(encKey, hashMsg, "sha256")
-
+  
   Sys.sleep(1)
   if (type == "POST") {
-    req <- httr::POST(url, httr::add_headers("AccKeyId" = accKey,
+    req <- httr::POST(url, httr::add_headers("AccessKeyId" = accKey,
                                              "Signature" = signature,
                                              "TimeStamp" = timeStamp))
   } else {
-    req <- httr::GET(url, httr::add_headers("AccKeyId" = accKey,
+    req <- httr::GET(url, httr::add_headers("AccessKeyId" = accKey,
                                             "Signature" = signature,
                                             "TimeStamp" = timeStamp))
   }
@@ -46,7 +46,7 @@ api.call <- function(apiCommand, accKey, encKey, type="GET"){
 # https://www.economy.com/myeconomy/api-key-info
 ACC_KEY     <- "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
 ENC_KEY     <- "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-BASKET_NAME <- "Test basket"
+BASKET_NAME <- "Test Basket"
 
 #####
 # Identify a basket to execute:
