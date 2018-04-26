@@ -27,6 +27,10 @@ namespace APICodeSample
             string DesktopLocation = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory); //All logs and basket files are currently saved to the Desktop
 
 
+            string singleSeries = GetSingleSeries(AccessKey, EncryptionKey, "ET.IUSA");
+            var jsonSingleSeries = JsonConvert.DeserializeObject(singleSeries);
+            File.WriteAllText(String.Format(@"{0}\SingleSeries.json", DesktopLocation), JsonConvert.SerializeObject(jsonSingleSeries, Formatting.Indented));
+
             string result = GetBaskets(AccessKey, EncryptionKey); // Calls to GetBaskets Method for list of Baskets &  basket metadata under account
             var jsonObject = JsonConvert.DeserializeObject(result);
             File.WriteAllText(String.Format(@"{0}\Baskets.json", DesktopLocation), JsonConvert.SerializeObject(jsonObject, Formatting.Indented));
@@ -67,6 +71,42 @@ namespace APICodeSample
 
         } // This is the end of the Main method. Following code represents the inidividual methods called in Main method. 
 
+        /// <summary>
+        /// Returns a data series in JSON
+        /// </summary>
+        /// <param name="accessKey">Access Key</param>
+        /// <param name="encryptionKey">Encryption Key</param>
+        /// <param name="mnemonic">Mnemonic - the data series' unique identifier</param>
+        /// <returns></returns>
+        public static string GetSingleSeries(string accessKey, string encryptionKey, string mnemonic)
+        {
+            string timeStamp = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
+            string signature = CreateHMACSignature(accessKey, encryptionKey, timeStamp);
+            string json;
+
+            // encode mnemonic to make it url safe
+            // e.g. mnemonics that contain a "%"
+            mnemonic = Uri.EscapeUriString(mnemonic);
+
+            Uri uri = new Uri(UriEndpoint + "series?m=" + mnemonic);
+            WebRequest webRequest = WebRequest.Create(uri);
+            webRequest.Method = "GET";
+            webRequest.Headers.Add(AccessKeyHeader, accessKey);
+            webRequest.Headers.Add(TimeStampHeader, timeStamp);
+            webRequest.Headers.Add(SignatureHeader, signature);
+
+            WebResponse webResponse = webRequest.GetResponse();
+
+            using (Stream stream = webResponse.GetResponseStream())
+            {
+                using (StreamReader streamReader = new StreamReader(stream))
+                {
+                    json = streamReader.ReadToEnd();
+                }
+            }
+
+            return json;
+        }
 
         // GetBaskets Method will:
         // Generate new timeStamp & signature
