@@ -321,3 +321,6 @@ local.properties
 .cache-main
 .scala_dependencies
 .worksheet
+
+# Pycharm
+venv/
