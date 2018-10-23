@@ -21,6 +21,7 @@ The code samples in this GitHub repository provide a starting point to write you
 * Python: API-Sample.py
 * R: API-Sample.R
 * User guide PDF: databuffet-api-userguide.pdf
+* Enumerations for frequency, transformation, conversion type, and date options
 
 ## Support and contributions
 
