@@ -6,7 +6,7 @@ Data Buffet (DataBuffet.com) is the Moody's Analytics repository of internationa
 
 The code samples in this GitHub repository provide a starting point to write your custom software solutions to retrieve individual series or baskets via the API. There are four languages: C#, Java, Python and R. The first two languages are projects (multiple files in a folder structure) that can be opened in an IDE (Microsoft Visual Studio and Eclipse, respectively); the latter two are single source files. The content of the samples, and the set of languages, are subject to change.
 
-Please see documentation [here](https://github.com/moodysanalytics/databuffet.api.codesamples/blob/017f7a424c39706369e2133913f6b386bc6e7bd7/databuffet-api-userguide.pdf).
+Please see documentation [here](https://github.com/moodysanalytics/databuffet.api.codesamples/blob/master/databuffet-api-userguide.pdf).
 
 
 ## Prerequisites
@@ -34,4 +34,4 @@ Please contact the Data Buffet API team at Moody's Analytics at either:
 
 ## License
 
-(c)2017 Moody's Analytics. All rights reserved.
+(c) 2019 Moody's Analytics, Inc. All rights reserved.
