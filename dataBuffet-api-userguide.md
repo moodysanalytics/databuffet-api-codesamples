@@ -61,7 +61,7 @@ TimeStamp: 2012-08-02T14:25:20Z
 Signature: A7808C5A67C422054364F195B16175308317930848232C6A08A77224F1017E83
 ```
 
-##### Figure 3. Example signature creation in C#
+##### Figure 3. Example signature creation in C# #
 This C# function creates a signature from an access key, encryption key, and time stamp. See the appendixes for equivalent examples in Java, Python and R.
 ``` c#
 using System;
@@ -580,7 +580,7 @@ namespace APICodeSample
     class Program
     {
         private const string URI_ENDPOINT = "https://api.economy.com/data/v1/";
-        private const string ACC_KEY_HEADER = "AccKeyId";
+        private const string ACC_KEY_HEADER = "AccessKeyId";
         private const string SIGNATURE_HEADER = "Signature";
         private const string TIME_STAMP_HEADER = "TimeStamp";
         private const string ACC_KEY = "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX";
@@ -982,7 +982,7 @@ def api_call(apiCommand, accKey, encKey, call_type="GET"):
     timeStamp = datetime.datetime.strftime(datetime.datetime.utcnow(), "%Y-%m-%dT%H:%M:%SZ")
     payload = bytes(accKey + timeStamp, "utf-8")
     signature = hmac.new(bytes(encKey, "utf-8"), payload, digestmod=hashlib.sha256)
-    head = {"AccKeyId":accKey,
+    head = {"AccessKeyId":accKey,
             "Signature":signature.hexdigest(),
             "TimeStamp":timeStamp}
     sleep(1)
@@ -1084,11 +1084,11 @@ api.call <- function(apiCommand, accKey, encKey, type="GET"){
     signature <- hmac(encKey, hashMsg, "sha256")
     Sys.sleep(1)
     if (type == "POST") {
-        req <- httr::POST(url, httr::add_headers("AccKeyId" = accKey,
+        req <- httr::POST(url, httr::add_headers("AccessKeyId" = accKey,
                                                  "Signature" = signature,
                                                   "TimeStamp" = timeStamp))
     } else {
-        req <- httr::GET(url, httr::add_headers("AccKeyId" = accKey,
+        req <- httr::GET(url, httr::add_headers("AccessKeyId" = accKey,
                                                 "Signature" = signature,
                                                 "TimeStamp" = timeStamp))
     }
