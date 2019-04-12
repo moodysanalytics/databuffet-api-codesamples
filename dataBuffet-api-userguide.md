@@ -1,24 +1,25 @@
-Moody's Analytics Data Buffet API User Guide
-=========================
-*version 1.10.1*
+# Moody's Analytics Data Buffet API User Guide
 
-Introduction
----------------------------
-Data Buffet is the Moody’s Analytics repository of international and subnational economic and demographic time series data. We provide several means of manual and automatic access that you can integrate with your workflow, among them, the Data Buffet API (application program interface). The API uses HMAC authentication and JSON responses, and is agnostic regarding the client’s operating system and programming language. The API is throttled (rate-limited) to one request per second and one gigabyte of data per month. The principal tutorial in this document is expressed in cURL notation, but the appendixes contain equivalent examples in C#, Java, Python and R.
+_version 1.13.1_
 
-Overview
----------------------------
+## Introduction
+
+Data Buffet is the Moody’s Analytics repository of international and subnational economic and demographic time series data. We provide several means of manual and automatic access that you can integrate with your workflow, among them, the Data Buffet API (application program interface). The API uses HMAC and oAuth 2.0 authentication and JSON responses, and is agnostic regarding the client’s operating system and programming language. The API is throttled (rate-limited) to 300 requests per minute and one gigabyte of data per month. The principal tutorial in this document is expressed in cURL notation, but the appendixes contain equivalent examples in C#, Java, Python and R.
+
+## Overview
+
 The API’s core functionality is expressed by three groups of endpoints:
+
 * _/series_ – An endpoint to retrieve a single time series.
 * _/multiseries_ - An endpoint to return an array of series data formatted in JSON.
 * _/baskets_ – A collection of endpoints pertaining to the baskets stored by a user on Data Buffet.
   * Get a list of baskets
   * Get a single basket by ID
   * Get the contents of a given basket – The content of a basket is a list of mnemonics or other expressions, not the time
-series data. To obtain the time series data and the associated metadata, a basket must be executed via the /orders
-endpoint.
+    series data. To obtain the time series data and the associated metadata, a basket must be executed via the /orders
+    endpoint.
 * _/orders_ – A collection of endpoints to create and manage orders and to retrieve the basket output associated with a completed
-order.
+  order.
   * Place an order
   * Delete an order
   * Get a list of orders
@@ -27,9 +28,10 @@ order.
 
 The API also provides some helper endpoints that are used for returning enumerations. For more information, please see <https://github.com/moodysanalytics/databuffet.api.codesamples>.
 
-Is the API right for me?
----------------------------
+## Is the API right for me?
+
 The Data Buffet API is best suited to programmatically retrieve a small number of individual series stored on Data Buffet, or execute and retrieve the results of a basket saved on your Data Buffet account. For other tasks, consider these mechanisms, documented elsewhere:
+
 * Explore the contents of the repository: catalog and search features on DataBuffet.com
 * Read long-form information about individual series or datasets: Mnemonic 411 and Data Buffet News at DataBuffet.com
 * Transfer a large number of series: a basket created on DataBuffet.com
@@ -38,32 +40,48 @@ The Data Buffet API is best suited to programmatically retrieve a small number o
 * Feed time series data into an Excel workbook calculation, chart or VBA process: Power Tools
 * Display a visualization (chart, map) in a Microsoft Excel document with one-touch update: Power Tools
 
-Authentication
----------------------------
+## Authentication
+
+Databuffet API supports 2 forms of authentication:
+
+1.  HMAC Signature
+2.  OAuth 2.0 Token
+
+Both methods require Databuffet API access key and encryption key. Every request to the API must contain either an HMAC signature or OAuth Token.
+
 ### Getting API Keys
+
 Access to the API is controlled by the combination of an access key and an encryption key. These keys are issued to a single user. To obtain your keys, go to the “My Subscriptions” section of your Economy.com account: https://www.economy.com/myeconomy/api-key-info.
+
 ##### Figure 1. Example access key and encryption key
+
 ```
 DB73FDF0-043C-4018-A7EB-CFB57356BA22
 7C7C2FEA-6D18-49A1-BEC9-193B67EAE87D
 ```
 
+## Using HMAC Authentication
+
 ### Authenticating each request
-Every request to the API must contain an HMAC signature, which you generate from your access key, encryption key, and a time stamp. You must attach a signature to every request, and you must re-create the signature with every request; you will receive an HTTP 401 Unauthorized error otherwise.
+
+HMAC signature is generated from your access key, encryption key, and a time stamp. You must attach a signature to every request using HAMC authorization, and you must re-create the signature with every request; you will receive an HTTP 401 Unauthorized error otherwise.
 
 The access key, time stamp and signature need to be passed in as HTTP headers (not as part of the query string). Do not transmit the encryption key in the request since it is a secret between you and the server.
 Specifically, the signature is a SHA256 hash of the access key, encryption key and time stamp. The time stamp must be formatted as yyyy-MM-ddTHH:mm:ssZ using UTC. For example, “July 30, 2018 5:03:28pm EST” must be represented as 2018-07-30T21:03:28Z.
 
 ##### Figure 2. Example HTTP request header
+
 ```
 AccessKeyId: DB73FDF0-043C-4018-A7EB-CFB57356BA22
 TimeStamp: 2012-08-02T14:25:20Z
 Signature: A7808C5A67C422054364F195B16175308317930848232C6A08A77224F1017E83
 ```
 
-##### Figure 3. Example signature creation in C# #
+##### Figure 3. Example signature creation in C
+
 This C# function creates a signature from an access key, encryption key, and time stamp. See the appendixes for equivalent examples in Java, Python and R.
-``` c#
+
+```c#
 using System;
 using System.Text;
 using System.Security.Cryptography;
@@ -85,15 +103,58 @@ public static string CreateHMACSignature
 }
 ```
 
-Step-by-step examples
---------------------------
+## Using OAuth authentication.
+
+oAuth Token can be generated by calling an API endpoint, using API access key as *client_id* and API encryption key as *client_secret* and it will remain valid for 1 hour. You must include token in header of every request using OAuth authorization.
+
+### Obtaining OAuth Token
+
+The _oauth2/token_ endpoint is used to generate oAuth Token using your *access key as client_id, encryption key as client_secret and grant_type as client_credentials*. Following cURL request can be used to obtain an OAuth token.
+
+##### Figure 4. Request
+
+```
+curl -X POST \
+  https://api.economy.com/data/v1/oauth2/token \
+  -H 'Content-Type: application/x-www-form-urlencoded' \
+  -d 'client_id=DB73FDF0-043C-4018-A7EB-CFB57356BA22' \  
+  -d 'client_secret=47C7C2FEA-6D18-49A1-BEC9-193B67EAE87D' \
+  -d 'grant_type=client_credentials'
+```
+
+The response to the above request will have a new access token.
+
+##### Figure 5. Respone
+
+```
+{
+  "token_type": "bearer",
+  "access_token": "SrZ5UkbzPn432zqMLgV3Ja",
+  "expires_in": 3600
+}
+```
+
+A request to API will have **Authorization: Bearer _token_** as header
+
+##### Figure 6. Call to API endpoint using oAuth Token
+
+```
+curl -X GET \
+  'https://api.economy.com/data/v1/series?m=ET.IUSA' \
+  -H 'Authorization: Bearer SrZ5UkbzPn432zqMLgV3Ja'
+```
+
+## Step-by-step examples
+
 All examples in this section use the access key, time stamp, and signature generated above. Replace these three header values with your newly generated values on every request. The following tutorial uses cURL syntax. See the appendixes for equivalent code examples in C#, Java, Python and R.
 
 ### Retrieve a single series
+
 The _/series?m={m}&freq={freq}&trans={trans}_ endpoint is used to download a single series specified by a mnemonic
 or expression. The first parameter, m, is mandatory; The optional parameters freq, trans, conv perform a frequency conversion, apply a transformation and apply conversion type, respectively. startDate and endDate parameters are also optional and should be in YYYY-MM-dd format. If omitted, the API will use default values. For valid codes, see the Enumerations appendix.
 
-##### Figure 4. Request
+##### Figure 7a. Request using HAMC Signature
+
 ```
 curl -X GET \
 'https://api.economy.com/data/v1/series?m=et.iusa&freq=0&trans=0' \
@@ -101,8 +162,18 @@ curl -X GET \
 -H 'signature: A7808C5A67C422054364F195B16175308317930848232C6A08A77224F1017E83' \
 -H 'timestamp: 2012-08-02T14:25:20Z'
 ```
-##### Figure 5. Response
-``` json
+
+##### Figure 7b. Request using oAuth Token
+
+```
+curl -X GET \
+'https://api.economy.com/data/v1/series?m=et.iusa&freq=0&trans=0' \
+-H 'Authorization: Bearer SrZ5UkbzPn432zqMLgV3Ja' 
+```
+
+##### Figure 8. Response
+
+```json
 {
     "data": {
     "freq": "MONTH",
@@ -144,19 +215,22 @@ curl -X GET \
 ```
 
 ### Retrieve multi series
+
 The _/multi-series?m={m}&freq={freq}&trans={trans}&conv={conv}&startDate={startDate}&endDate={endDate}_ endpoint is used to download multi series specified by a mnemonic or expression. The first parameter, m, is mandatory. m is a semicolon seperated list of mnemonics. The optional parameters freq, trans, conv perform a frequency conversion, apply a transformation and apply conversion type, respectively. startDate and endDate parameters are also optional and should be in YYYY-MM-dd format. If omitted, the API will use default values. For valid codes, see the Enumerations appendix.
 
-##### Figure 6. Request
+##### Figure 9. Request using oAuth Token
+
 ```
 curl -X GET \
 'https://api.economy.com/data/v1/multi-series?m=et.us;fet.us' \
--H 'accesskeyid: DB73FDF0-043C-4018-A7EB-CFB57356BA22' \
--H 'signature: A7808C5A67C422054364F195B16175308317930848232C6A08A77224F1017E83' \
--H 'timestamp: 2012-08-02T14:25:20Z'
+-H 'Authorization: Bearer SrZ5UkbzPn432zqMLgV3Ja'
 ```
-##### Figure 7. Response
+
+##### Figure 10. Response
+
 For brevity, the date and value information of data is trimmed.
-``` json
+
+```json
 {
     "error": null,
     "data": [
@@ -169,7 +243,7 @@ For brevity, the date and value information of data is trimmed.
             "freqCode": "MONTH",
             "mnemonic": "ET.IUSA",
             "observedAttribute": "AVERAGED",
-            "source": "U.S. Bureau of Labor Statistics (BLS): Current Employment 
+            "source": "U.S. Bureau of Labor Statistics (BLS): Current Employment
 							Statistics (CE) [Series ID = CES0000000001]",
             "data": [
                 {
@@ -199,7 +273,7 @@ For brevity, the date and value information of data is trimmed.
             "appliedFreq": 172,
             "appliedTransformation": 0,
             "databank": "USFOR.db",
-            "description": "Baseline Scenario (January 2019): Employment: 
+            "description": "Baseline Scenario (January 2019): Employment:
 								Total Nonagricultural, (Mil. #, SA)",
             "error": null,
             "freqCode": "QTRDEC",
@@ -232,31 +306,35 @@ For brevity, the date and value information of data is trimmed.
     ]
 }
 ```
+
 ### Executing a basket and downloading its output: Overview
+
 Since the above endpoint _(/series)_ allows for downloading only a single series at a time, we do not recommend it for pulling down large sets of data. Instead, it is more efficient to define a basket on Data Buffet, then execute it and download its output via the API. To do so, use the _/baskets_ and _/orders_ endpoints together:
 
-1. Retrieve a list of your saved baskets using the _/baskets_ endpoint. Note: The baskets need to be created and managed on DataBuffet.com, as there are currently no endpoints in the API to perform these operations.
-2. Locate the desired basket from the response of the previous step and make a note of its basketId.
-3. Use the POST _orders?id={id}&type={type}&action={action}_ endpoint to create a new basket execution order. Pass the _basketId_ from Step 2 in the _{id}_ parameter, set _{type}_ to “baskets”, and set _{action}_ to “run.”
-4. This creates an order in the queue and returns some metadata about the order, including an orderId.
-5. Since the execution of a basket takes time to complete, use this orderId value in a call to the GET _orders/{orderId}_ endpoint to get the details on whether the process has completed. Whether the process has completed is indicated by the _dateFinished_ response value. If null, the process is still executing; if not null, the process has completed.
-6. Once the process is complete, the final step is to retrieve the output file by calling the _GET/orders?id={id}&type=baskets_ endpoint. Like the POST request that executed the basket in Step 3, set the _{id}_ parameter to the _basketId_.
+1.  Retrieve a list of your saved baskets using the _/baskets_ endpoint. Note: The baskets need to be created and managed on DataBuffet.com, as there are currently no endpoints in the API to perform these operations.
+2.  Locate the desired basket from the response of the previous step and make a note of its basketId.
+3.  Use the POST _orders?id={id}&type={type}&action={action}_ endpoint to create a new basket execution order. Pass the _basketId_ from Step 2 in the _{id}_ parameter, set _{type}_ to “baskets”, and set _{action}_ to “run.”
+4.  This creates an order in the queue and returns some metadata about the order, including an orderId.
+5.  Since the execution of a basket takes time to complete, use this orderId value in a call to the GET _orders/{orderId}_ endpoint to get the details on whether the process has completed. Whether the process has completed is indicated by the _dateFinished_ response value. If null, the process is still executing; if not null, the process has completed.
+6.  Once the process is complete, the final step is to retrieve the output file by calling the _GET/orders?id={id}&type=baskets_ endpoint. Like the POST request that executed the basket in Step 3, set the _{id}_ parameter to the _basketId_.
 
 **Pay attention to the distinction between the permanent ID of the basket that is being executed _(basketId)_ and the _transient ID_ assigned to the order that is performing this task _(orderId)_. Use the latter only when checking if an order has completed.**
 
 ### Retrieve a list of your saved baskets
 
-##### Figure 8. Request
+##### Figure 11. Request using oAuth Token
+
 ```
 curl -X GET \
    https://api.economy.com/data/v1/baskets/ \
-   -H 'accesskeyid: DB73FDF0-043C-4018-A7EB-CFB57356BA22' \
-   -H 'signature: A7808C5A67C422054364F195B16175308317930848232C6A08A77224F1017E83' \
-   -H 'timestamp: 2012-08-02T14:25:20Z'
+   -H 'Authorization: Bearer SrZ5UkbzPn432zqMLgV3Ja'
 ```
-##### Figure 9. Response
+
+##### Figure 12. Response
+
 For brevity, only two baskets with a trimmed list of attributes are shown.
-``` json
+
+```json
 [
     {
         "basketId": "5DA8BDFD-8E8F-46F6-AC50-64C1814542EE",
@@ -279,31 +357,32 @@ For brevity, only two baskets with a trimmed list of attributes are shown.
 ```
 
 ### Execute a basket
+
 We choose to execute the first basket returned from the prior request _(basketId 5DA8BDFD-8E8F-46F6-AC50-64C1814542EE)_.
 
-##### Figure 10. Request
+##### Figure 13. Request using oAuth Token
+
 ```
 curl -X POST \
   'https://api.economy.com/data/v1/orders?id=5DA8BDFD-8E8F-46F6-AC50-64C1814542EE&type=baskets&action=run' \
-  -H 'accesskeyid: DB73FDF0-043C-4018-A7EB-CFB57356BA22' \
-  -H 'signature: A7808C5A67C422054364F195B16175308317930848232C6A08A77224F1017E83' \
-  -H 'timestamp: 2012-08-02T14:25:20Z'
+  -H 'Authorization: Bearer SrZ5UkbzPn432zqMLgV3Ja'
 ```
 
-##### Figure 11. Response
-``` json 
+##### Figure 14. Response
+
+```json
 {
-    "orderId": "DF0AB8F3-19D3-4D7D-9AE5-CB410FC6B6E7",
-    "dateOrdered": null,
-    "dateStarted": null,
-    "dateFinished": null,
-    "failedAttempts": 0,
-    "processing": false,
-    "queueStatus": 0,
-    "basketId": null,
-    "orderType": 0,
-    "enteredQueue": "0001-01-01T00:00:00",
-    "updatedQueue": null
+  "orderId": "DF0AB8F3-19D3-4D7D-9AE5-CB410FC6B6E7",
+  "dateOrdered": null,
+  "dateStarted": null,
+  "dateFinished": null,
+  "failedAttempts": 0,
+  "processing": false,
+  "queueStatus": 0,
+  "basketId": null,
+  "orderType": 0,
+  "enteredQueue": "0001-01-01T00:00:00",
+  "updatedQueue": null
 }
 ```
 
@@ -311,261 +390,289 @@ curl -X POST \
 
 Since the previous request returns an _orderId(DF0AB8F3-19D3-4D7D-9AE5-CB410FC6B6E7)_, we use that value to check if our basket execution order has finished running.
 
-##### Figure 12. Request
+##### Figure 15. Request using oAuth Token
+
 ```
 curl -X GET \
    'https://api.economy.com/data/v1/orders/DF0AB8F3-19D3-4D7D-9AE5-CB410FC6B6E7' \
-   -H 'accesskeyid: DB73FDF0-043C-4018-A7EB-CFB57356BA22' \
-   -H 'signature: A7808C5A67C422054364F195B16175308317930848232C6A08A77224F1017E83' \
-   -H 'timestamp: 2012-08-02T14:25:20Z'
+   -H 'Authorization: Bearer SrZ5UkbzPn432zqMLgV3Ja'
 ```
 
-##### Figure 13. Response
-``` json
+##### Figure 16. Response
+
+```json
 {
-    "orderId": "DF0AB8F3-19D3-4D7D-9AE5-CB410FC6B6E7",
-    "dateOrdered": "2017-11-27T19:36:39.927Z",
-    "dateStarted": "2017-11-27T19:36:40.1Z",
-    "dateFinished": "2017-11-27T19:36:40.513Z",
-    "failedAttempts": 0,
-    "processing": false,
-    "queueStatus": 2,
-    "basketId": "5DA8BDFD-8E8F-46F6-AC50-64C1814542EE",
-    "orderType": 1,
-    "enteredQueue": "2017-11-27T14:36:39.927",
-    "updatedQueue": "2017-11-27T14:36:39.927"
+  "orderId": "DF0AB8F3-19D3-4D7D-9AE5-CB410FC6B6E7",
+  "dateOrdered": "2017-11-27T19:36:39.927Z",
+  "dateStarted": "2017-11-27T19:36:40.1Z",
+  "dateFinished": "2017-11-27T19:36:40.513Z",
+  "failedAttempts": 0,
+  "processing": false,
+  "queueStatus": 2,
+  "basketId": "5DA8BDFD-8E8F-46F6-AC50-64C1814542EE",
+  "orderType": 1,
+  "enteredQueue": "2017-11-27T14:36:39.927",
+  "updatedQueue": "2017-11-27T14:36:39.927"
 }
 ```
+
 If the order is not finished running, _dateFinished_ is set to _null_. In that case, re-issue the request in a loop after introducing a pause of a second or more until _dateFinished_ is _not_ null or until a certain time-out period is hit to prevent an infinite loop. (You cannot check more often than once per second, because that is the API’s throttle rate.)
 
 ### Download the output file
+
 After making sure that your order is completed, it is now time to download the output file associated with the execution of the basket. The output file type is set as part of the basket’s configuration and cannot be altered via the API. Note that the _id_ used in this request is the _basketId_.
 
-##### Figure 14. Request
+##### Figure 17. Request using oAuth Token
+
 ```
 curl -X GET \
    'https://api.economy.com/data/v1/orders?type=baskets&id=5DA8BDFD-8E8F-46F6-AC50-64C1814542EE'\
-   -H 'accesskeyid: DB73FDF0-043C-4018-A7EB-CFB57356BA22' \
-   -H 'signature: A7808C5A67C422054364F195B16175308317930848232C6A08A77224F1017E83' \
-   -H 'timestamp: 2012-08-02T14:25:20Z'
+   -H 'Authorization: Bearer SrZ5UkbzPn432zqMLgV3Ja'
 ```
 
 ##### Response
+
 The response of this request is the binary of the output file associated with the basket. You will need to write this binary stream to a file
 using the same file name and extension as specified in your basket options. See the Appendix for samples in C#, Java, Python, and R.
 
-
-
 ### Frequently asked questions
-*  What programming languages does the API support?
-*  What response types are supported?
-*  Can I use the API from Linux?
-*  What kind of authentication does the API use?
-*  How often do I need to regenerate the signature?
-*  Is the API throttled?
-*  What’s the fastest way to retrieve a large number of series?
-*  Can I use the API to populate a data warehouse?
-*  What kind of Data Buffet objects can I retrieve?
-*  Which series can I retrieve?
-*  Can I create or alter a basket?
-*  If I alter the name of a basket on DataBuffet.com, do I need to change my code?
-*  Whom do I contact for assistance in using the API?
-*  Do other Moody’s Analytics products have APIs?
-*  I don’t understand this jargon—can you translate?
+
+* What programming languages does the API support?
+* What response types are supported?
+* Can I use the API from Linux?
+* What kind of authentication does the API use?
+* How often do I need to regenerate the signature?
+* How often do I need to regenerate the token?
+* Is the API throttled?
+* What’s the fastest way to retrieve a large number of series?
+* Can I use the API to populate a data warehouse?
+* What kind of Data Buffet objects can I retrieve?
+* Which series can I retrieve?
+* Can I create or alter a basket?
+* If I alter the name of a basket on DataBuffet.com, do I need to change my code?
+* Whom do I contact for assistance in using the API?
+* Do other Moody’s Analytics products have APIs?
+* I don’t understand this jargon—can you translate?
 
 #### What programming languages does the API support?
+
 The programming language used at your end is immaterial, so long as it (a) creates HTTP requests that the API can process, and (b) can interpret the JSON-formatted responses produced by the API. The examples in this document use cURL, C#, Java, Python and R.
 
 #### What response types are supported?
+
 JSON is the only response type returned by the API.
 
 #### Can I use the API from Linux?
+
 Yes, because the operating system is immaterial. Java, Python and R are commonly used on Linux machines; to run C#, you will need to install the .NET Core framework. Setting up your run-time environment is beyond the scope of this document.
 
 #### What kind of authentication does the API use?
-Our API uses HMAC authentication. See the Authentication section above for more info.
+
+Our API uses HMAC and OAuth 2.0 authentication. See the Authentication section above for more info.
 
 #### How often do I need to regenerate the signature?
+
 You must re-create the signature prior to every request; otherwise you will receive the “HTTP 401 Unauthorized” error. You may find it useful to create a wrapper function that takes the time stamp, access key and encryption key as arguments, and generates a signature immediately before calling the endpoint.
 
+#### How often do I need to regenerate the token?
+
+Once generated the oAuth token is valid for 1 hour and can be used for multiple requests.
+
 #### Is the API throttled?
-Yes, in two ways. First, you can execute one request per second per account (but a single request can retrieve one series or a basket containing thousands of series). You will receive “HTTP 429 Too Many Requests” error. Second, you can retrieve only one gigabyte of data per month. This includes all of the metadata and HTTP headers, although these are insignificant relative to the data payload. The number of requests and series are not specifically limited.
+
+Yes, in two ways. First, you can execute 300 requests per minute per account (but a single request can retrieve one series or a basket containing thousands of series). You will receive “HTTP 429 Too Many Requests” error. Second, you can retrieve only one gigabyte of data per month. This includes all of the metadata and HTTP headers, although these are insignificant relative to the data payload. The number of requests and series are not specifically limited.
 
 #### What’s the fastest way to retrieve a large number of series?
-Because the API is throttled, do not retrieve the series individually; instead, execute a basket that contains all of the series. 
+
+Because the API is throttled, do not retrieve the series individually; instead, execute a basket that contains all of the series.
 
 #### Can I use the API to populate a data warehouse?
+
 Yes. You may create a data warehouse for internal use, but the number of users who may have access to it is stipulated by your contract; please contact your Moody’s Analytics sales representative if you have questions. To initially populate the warehouse, and to regularly or promptly update each time series with new periods, Data Buffet’s “scheduled basket” mechanism is more efficient than the API. (See Is the API right for me? above.)
 
 #### What kind of Data Buffet objects can I retrieve?
+
 The API can return a single data series, a list of your saved baskets, the properties of a particular basket, or the output file of an execution of a basket. It also returns common enumerations such as frequency and file types.
 
 #### Which series can I retrieve?
+
 Your access via API is identical to that via Data Buffet and Power Tools; this includes E-model simulation aliases, our historical, estimated and forecast products, and your custom scenarios. Essentially any expression that a basket can run, you can submit via the API.
 
 #### Can I create or alter a basket?
+
 No. The API executes baskets you have created manually through DataBuffet.com; to alter their contents, go to DataBuffet.com.
 
 #### If I alter the name of a basket on DataBuffet.com, do I need to change my code?
+
 No. The /baskets/{id} endpoint identifies a basket by an immutable alphanumeric GUID that is assigned by our system, not the
 human-readable title assigned by you.
 
 #### Whom do I contact for assistance in using the API?
+
 Please go to the Economy.com Contact Us page for email, chat, and telephone options. If using the email form, set Topic to “Technical Issue.”
 
 #### Do other Moody’s Analytics products have APIs?
-Yes. We provide APIs for our AutoCycle and Précis products. 
+
+Yes. We provide APIs for our AutoCycle and Précis products.
 
 #### I don’t understand this jargon—can you translate?
+
 Please see if the glossary in this document helps. It lists terminology pertaining to web APIs, Data Buffet, and related Moody’s Analytics products.
 
 ### Appendix 1: API endpoints
 
 All API endpoints below are relative to the root URL https://api.economy.com/data/v1/.
 
-| HTTP | Endpoint | Description |
-|--------|----------|-----------------|
-| **Series** |
-| GET | series?m={m}&freq={freq}&trans={trans}&conv={conv}&startDate={startDate}&endDate={endDate} | Return a series (metadata and numeric observations) formatted in JSON.|
+| HTTP             | Endpoint                                                                                         | Description                                                                               |
+| ---------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| **Series**       |
+| GET              | series?m={m}&freq={freq}&trans={trans}&conv={conv}&startDate={startDate}&endDate={endDate}       | Return a series (metadata and numeric observations) formatted in JSON.                    |
 | **Multi Series** |
-| GET | multi-series?m={m}&freq={freq}&trans={trans}&conv={conv}&startDate={startDate}&endDate={endDate} | Returns an array of series data formatted in JSON.|
-| **Baskets** |
-| GET | baskets?filetype={filetype}&page={page}&size={size} | Return a JSON list describing baskets available for execution. Optionally paginated. |
-| GET | baskets/output-file?id={id} | Returns the streamed file content that was generated the last time a basket was executed. |
-| GET | baskets/{id} | Return a single basket. |
-| GET | baskets/{id}/contents?page={page}&size={size} | Retrieve the contents of a basket. |
-| **Frequency** |
-| GET |frequencies | Return a list of frequency codes |
-| **Orders** |
-| GET | orders | Return a list of your orders. |
-| GET | orders/{orderId} | Return the status of an execution order. |
-| POST | orders?id={id}&type={type}&action={action} | Place an order to generate a data file; return a JSON object with the order ID. |
-| GET | orders?id={id}&type={type} | Return the streamed file content generated the last time a basket was executed. |
-| DELETE | orders/{orderId} | Delete an order from the queue. |
-| **File types** |
-| GET | filetypes?type={type} | Return the file types available for a given object type. |
+| GET              | multi-series?m={m}&freq={freq}&trans={trans}&conv={conv}&startDate={startDate}&endDate={endDate} | Returns an array of series data formatted in JSON.                                        |
+| **Baskets**      |
+| GET              | baskets?filetype={filetype}&page={page}&size={size}                                              | Return a JSON list describing baskets available for execution. Optionally paginated.      |
+| GET              | baskets/output-file?id={id}                                                                      | Returns the streamed file content that was generated the last time a basket was executed. |
+| GET              | baskets/{id}                                                                                     | Return a single basket.                                                                   |
+| GET              | baskets/{id}/contents?page={page}&size={size}                                                    | Retrieve the contents of a basket.                                                        |
+| **Frequency**    |
+| GET              | frequencies                                                                                      | Return a list of frequency codes                                                          |
+| **Orders**       |
+| GET              | orders                                                                                           | Return a list of your orders.                                                             |
+| GET              | orders/{orderId}                                                                                 | Return the status of an execution order.                                                  |
+| POST             | orders?id={id}&type={type}&action={action}                                                       | Place an order to generate a data file; return a JSON object with the order ID.           |
+| GET              | orders?id={id}&type={type}                                                                       | Return the streamed file content generated the last time a basket was executed.           |
+| DELETE           | orders/{orderId}                                                                                 | Delete an order from the queue.                                                           |
+| **File types**   |
+| GET              | filetypes?type={type}                                                                            | Return the file types available for a given object type.                                  |
 
 ### Appendix 2: Error messages
+
 The error codes returned by the Data Buffet API are adaptations of standard HTTP server response codes.
 
-| Error code | Diagnosis |
-|------------|------------|
-| 401 Unauthorized | The authenticating HMAC signature is outdated. You must generate a new signature with a fresh time stamp (see Authentication section). |
-| 429 Too Many Requests | You have exceeded the one request per second rate limit. Throttling is access key-specific. |
-| 500 Internal Server Error | Server error. |
+| Error code                | Diagnosis                                                                                                                              |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| 401 Unauthorized          | The authenticating HMAC signature is outdated. You must generate a new signature with a fresh time stamp (see Authentication section). |
+| 429 Too Many Requests     | You have exceeded the one request per second rate limit. Throttling is access key-specific.                                            |
+| 500 Internal Server Error | Server error.                                                                                                                          |
 
 ### Appendix 3: Enumerations
 
 ##### ConversionType
+
 Data Buffet provides for the conversion of a time series from its native frequency to a different output frequency (either higher or lower), but the appropriate mathematical process depends on the nature of the series. There are three options, of which Cubic is the default.
 
-| Value | Name |
-|-------------|--------------|
-| 0 | Constant |
-| 1 | Linear |
-| 2 | Cubic (DEFAULT) |
-| 3 | Discrete |
+| Value | Name            |
+| ----- | --------------- |
+| 0     | Constant        |
+| 1     | Linear          |
+| 2     | Cubic (DEFAULT) |
+| 3     | Discrete        |
 
 ##### DateFormat
 
-| Name | Value | Description |
-|------|-------|--------------|
-| Default | 0 ||
-| General | 1 | 4/26/99|
-| GeneralPadded | 2 | 04/26/99|
-| GeneralPaddedFullYear | 3 | 04/26/1999|
-| AbrevMonth | 4 | Apr-99 |
-| AbrevMonthFullYear | 13 | Apr-1999 |
-| NoYear | 5 | 26-Apr |
-| LittleEndian | 6 | 26-Apr-99 |
-| Year | 7 | 1999 |
-| ISO8610 | 10 | 1999-04-26 |
-| ShortYear | 11 | 99 |
-| YearMonth | 12 | 1999M1 |
-| Quater | 14 | 99Q1 |
+| Name                  | Value | Description |
+| --------------------- | ----- | ----------- |
+| Default               | 0     |             |
+| General               | 1     | 4/26/99     |
+| GeneralPadded         | 2     | 04/26/99    |
+| GeneralPaddedFullYear | 3     | 04/26/1999  |
+| AbrevMonth            | 4     | Apr-99      |
+| AbrevMonthFullYear    | 13    | Apr-1999    |
+| NoYear                | 5     | 26-Apr      |
+| LittleEndian          | 6     | 26-Apr-99   |
+| Year                  | 7     | 1999        |
+| ISO8610               | 10    | 1999-04-26  |
+| ShortYear             | 11    | 99          |
+| YearMonth             | 12    | 1999M1      |
+| Quater                | 14    | 99Q1        |
 
 ##### DateOption
-| Value | Name |
-|-------------|--------------|
-| 0 | StartAndEnd |
-| 1 | Start |
-| 2 | EntireSeries |
-| 3 | Period |
+
+| Value | Name         |
+| ----- | ------------ |
+| 0     | StartAndEnd  |
+| 1     | Start        |
+| 2     | EntireSeries |
+| 3     | Period       |
 
 ##### Filetype
+
 Available file types can be retrieved by using the _/filetypes?type=baskets_ endpoint.
 
 ##### Frequencies
+
 In each response with a field that is a numeric frequency code, there will be a paired field with a human-readable string.
 
-| Value | Name |
-|-------------|--------------|
-| 0 | Default |
-| 16 | INDEX  |
-| 49 | Daily  |
-| 50 | Business daily (Mon- Fri) |
-| 65 | Weekly ending on Sunday  |
-| 66 | Weekly ending on Monday |
-| 67 | Weekly ending on Tuesday |
-| 68 | Weekly ending on Wednesday |
-| 69 | Weekly ending on Thursday |
-| 70 | Weekly ending on Friday |
-| 71 | Weekly ending on Saturday |
-| 80 | 3 Times a month 10th, 20th and end of month  |
-| 97 | Bi-Weekly, ending on alternating Sunday starting January, 27th 1850. <br>E.g. Jan 27 1850, Feb 10 1850, ... ,Dec 31 2017, Jan 14 2018, Jan 28 2018  |
-| 98 | Bi-Weekly, ending on alternating Monday starting January, 14th 1850. <br>E.g. Jan 14 1850, Jan 28 1850, ... ,Dec 18 2017, Jan 1 2018, Jan 15 2018  |
-| 99 | Bi-Weekly, ending on alternating Tuesday starting January, 15th 1850. <br>E.g. Jan 15 1850, Jan 29 1850, ... ,Dec 19 2017, Jan 2 2018, Jan 16 2018 |
-| 100 | Bi-Weekly, ending on alternating Wednesday starting January, 16th 1850. <br>E.g. Jan 16 1850, Jan 30 1850, ... ,Dec 20 2017, Jan 3 2018, Jan 17 2018  |
-| 101 | Bi-Weekly, ending on alternating Thursday starting January, 17th 1850. <br>E.g. Jan 17 1850, Jan 31 1850, ... ,Dec 21 2017, Jan 4 2018, Jan 18 2018  |
-| 102 | Bi-Weekly, ending on alternating Friday starting January, 18th 1850. <br>E.g. Jan 18 1850, Feb 1 1850, ... ,Dec 22 2017, Jan 5 2018, Jan 19 2018  |
-| 103 | Bi-Weekly, ending on alternating Saturday starting January, 19th 1850. <br>E.g. Jan 19 1850, Feb 2 1850, ... ,Dec 23 2017, Jan 6 2018, Jan 20 2018  |
-| 104 | Bi-Weekly, ending on alternating Sunday starting January, 20th 1850. <br>E.g. Jan 20 1850, Feb 3 1850, ... ,Dec 24 2017, Jan 7 2018, Jan 21 2018  |
-| 105 | Bi-Weekly, ending on alternating Monday starting January, 21st 1850. <br>E.g. Jan 21 1850, Feb 4 1850, ... ,Dec 25 2017, Jan 8 2018, Jan 22 2018 |
-| 106 | Bi-Weekly, ending on alternating Tuesday starting January, 22nd 1850. <br>E.g. Jan 22 1850, Feb 5 1850, ... ,Dec 26 2017, Jan 9 2018, Jan 23 2018  |
-| 107 | Bi-Weekly, ending on alternating Wednesday starting January, 23rd 1850. <br>E.g. Jan 23 1850, Feb 6 1850, ... ,Dec 27 2017, Jan 10 2018, Jan 24 2018  |
-| 108 | Bi-Weekly, ending on alternating Thursday starting January, 24th 1850. <br>E.g. Jan 24 1850, Feb 7 1850, ... ,Dec 28 2017, Jan 11 2018, Jan 25 2018  |
-| 109 | Bi-Weekly, ending on alternating Friday starting January, 25th 1850. <br>E.g. Jan 25 1850, Feb 8 1850, ... ,Dec 29 2017, Jan 12 2018, Jan 26 2018   |
-| 110 | Bi-Weekly, ending on alternating Saturday starting January, 26th 1850. <br>E.g. Jan 26 1850, Feb 9 1850, ... ,Dec 30 2017, Jan 13 2018, Jan 27 2018   |
-| 112 | Semi-Monthly, 15th and end of month  |
-| 128 | Monthly  |
-| 155 | Bi-Monthly, with year ending in November  |
-| 156 | Bi-Monthly, with year ending in December  |
-| 170 | Quarterly, with year ending in October |
-| 171 | Quarterly, with year ending in November |
-| 172 | Quarterly, with year ending in December  |
-| 183 | Semi-Annual, with year ending in July |
-| 184 | Semi-Annual, with year ending in August |
-| 185 | Semi-Annual, with year ending in September |
-| 186 | Semi-Annual, with year ending in October |
-| 187 | Semi-Annual, with year ending in November  |
-| 188 | Semi-Annual, with year ending in December  |
-| 193 | Annual, with year ending in January  |
-| 194 | Annual, with year ending in February |
-| 195 | Annual, with year ending in March |
-| 196 | Annual, with year ending in April |
-| 197 | Annual, with year ending in May|
-| 198 | Annual, with year ending in June |
-| 199 | Annual, with year ending in July |
-| 200 | Annual, with year ending in August |
-| 201 | Annual, with year ending in September |
-| 202 | Annual, with year ending in October |
-| 203 | Annual, with year ending in November |
-| 204 | Annual, with year ending in December |
+| Value | Name                                                                                                                                                 |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0     | Default                                                                                                                                              |
+| 16    | INDEX                                                                                                                                                |
+| 49    | Daily                                                                                                                                                |
+| 50    | Business daily (Mon- Fri)                                                                                                                            |
+| 65    | Weekly ending on Sunday                                                                                                                              |
+| 66    | Weekly ending on Monday                                                                                                                              |
+| 67    | Weekly ending on Tuesday                                                                                                                             |
+| 68    | Weekly ending on Wednesday                                                                                                                           |
+| 69    | Weekly ending on Thursday                                                                                                                            |
+| 70    | Weekly ending on Friday                                                                                                                              |
+| 71    | Weekly ending on Saturday                                                                                                                            |
+| 80    | 3 Times a month 10th, 20th and end of month                                                                                                          |
+| 97    | Bi-Weekly, ending on alternating Sunday starting January, 27th 1850. <br>E.g. Jan 27 1850, Feb 10 1850, ... ,Dec 31 2017, Jan 14 2018, Jan 28 2018   |
+| 98    | Bi-Weekly, ending on alternating Monday starting January, 14th 1850. <br>E.g. Jan 14 1850, Jan 28 1850, ... ,Dec 18 2017, Jan 1 2018, Jan 15 2018    |
+| 99    | Bi-Weekly, ending on alternating Tuesday starting January, 15th 1850. <br>E.g. Jan 15 1850, Jan 29 1850, ... ,Dec 19 2017, Jan 2 2018, Jan 16 2018   |
+| 100   | Bi-Weekly, ending on alternating Wednesday starting January, 16th 1850. <br>E.g. Jan 16 1850, Jan 30 1850, ... ,Dec 20 2017, Jan 3 2018, Jan 17 2018 |
+| 101   | Bi-Weekly, ending on alternating Thursday starting January, 17th 1850. <br>E.g. Jan 17 1850, Jan 31 1850, ... ,Dec 21 2017, Jan 4 2018, Jan 18 2018  |
+| 102   | Bi-Weekly, ending on alternating Friday starting January, 18th 1850. <br>E.g. Jan 18 1850, Feb 1 1850, ... ,Dec 22 2017, Jan 5 2018, Jan 19 2018     |
+| 103   | Bi-Weekly, ending on alternating Saturday starting January, 19th 1850. <br>E.g. Jan 19 1850, Feb 2 1850, ... ,Dec 23 2017, Jan 6 2018, Jan 20 2018   |
+| 104   | Bi-Weekly, ending on alternating Sunday starting January, 20th 1850. <br>E.g. Jan 20 1850, Feb 3 1850, ... ,Dec 24 2017, Jan 7 2018, Jan 21 2018     |
+| 105   | Bi-Weekly, ending on alternating Monday starting January, 21st 1850. <br>E.g. Jan 21 1850, Feb 4 1850, ... ,Dec 25 2017, Jan 8 2018, Jan 22 2018     |
+| 106   | Bi-Weekly, ending on alternating Tuesday starting January, 22nd 1850. <br>E.g. Jan 22 1850, Feb 5 1850, ... ,Dec 26 2017, Jan 9 2018, Jan 23 2018    |
+| 107   | Bi-Weekly, ending on alternating Wednesday starting January, 23rd 1850. <br>E.g. Jan 23 1850, Feb 6 1850, ... ,Dec 27 2017, Jan 10 2018, Jan 24 2018 |
+| 108   | Bi-Weekly, ending on alternating Thursday starting January, 24th 1850. <br>E.g. Jan 24 1850, Feb 7 1850, ... ,Dec 28 2017, Jan 11 2018, Jan 25 2018  |
+| 109   | Bi-Weekly, ending on alternating Friday starting January, 25th 1850. <br>E.g. Jan 25 1850, Feb 8 1850, ... ,Dec 29 2017, Jan 12 2018, Jan 26 2018    |
+| 110   | Bi-Weekly, ending on alternating Saturday starting January, 26th 1850. <br>E.g. Jan 26 1850, Feb 9 1850, ... ,Dec 30 2017, Jan 13 2018, Jan 27 2018  |
+| 112   | Semi-Monthly, 15th and end of month                                                                                                                  |
+| 128   | Monthly                                                                                                                                              |
+| 155   | Bi-Monthly, with year ending in November                                                                                                             |
+| 156   | Bi-Monthly, with year ending in December                                                                                                             |
+| 170   | Quarterly, with year ending in October                                                                                                               |
+| 171   | Quarterly, with year ending in November                                                                                                              |
+| 172   | Quarterly, with year ending in December                                                                                                              |
+| 183   | Semi-Annual, with year ending in July                                                                                                                |
+| 184   | Semi-Annual, with year ending in August                                                                                                              |
+| 185   | Semi-Annual, with year ending in September                                                                                                           |
+| 186   | Semi-Annual, with year ending in October                                                                                                             |
+| 187   | Semi-Annual, with year ending in November                                                                                                            |
+| 188   | Semi-Annual, with year ending in December                                                                                                            |
+| 193   | Annual, with year ending in January                                                                                                                  |
+| 194   | Annual, with year ending in February                                                                                                                 |
+| 195   | Annual, with year ending in March                                                                                                                    |
+| 196   | Annual, with year ending in April                                                                                                                    |
+| 197   | Annual, with year ending in May                                                                                                                      |
+| 198   | Annual, with year ending in June                                                                                                                     |
+| 199   | Annual, with year ending in July                                                                                                                     |
+| 200   | Annual, with year ending in August                                                                                                                   |
+| 201   | Annual, with year ending in September                                                                                                                |
+| 202   | Annual, with year ending in October                                                                                                                  |
+| 203   | Annual, with year ending in November                                                                                                                 |
+| 204   | Annual, with year ending in December                                                                                                                 |
 
 TransformationType
 
-| Value | Name |
-|-------------|--------------|
-| 0 | None (DEFAULT) |
-| 1 | YearOverYearPctChange |
-| 2 | SimpleDifference |
-| 3 | AnnualizedGrowth |
-| 4 | PctChange |
-| 8 | YearOverYearDiff |
+| Value | Name                  |
+| ----- | --------------------- |
+| 0     | None (DEFAULT)        |
+| 1     | YearOverYearPctChange |
+| 2     | SimpleDifference      |
+| 3     | AnnualizedGrowth      |
+| 4     | PctChange             |
+| 8     | YearOverYearDiff      |
 
-### Appendix 4: Examples in C#
+### Appendix 4: Examples in C
+
 ##### Necessary libraries
-``` c#
+
+```c#
 using System;
 using System.IO;
 using System.Net;
@@ -573,8 +680,10 @@ using System.Text;
 using System.Security.Cryptography;
 using Newtonsoft.Json;
 ```
+
 ##### Main program
-``` c#
+
+```c#
 namespace APICodeSample
 {
     class Program
@@ -629,7 +738,8 @@ namespace APICodeSample
 ```
 
 ##### Create signature
-``` c#
+
+```c#
 public static string CreateHMACSig(string accKey, string encKey, string timeStamp)
 {
     string signature = string.Empty;
@@ -648,6 +758,7 @@ public static string CreateHMACSig(string accKey, string encKey, string timeStam
 ```
 
 ##### Retrieve a basket
+
 ```c#
 public static string GetBaskets(string accKey, string encKey)
 {
@@ -671,8 +782,10 @@ public static string GetBaskets(string accKey, string encKey)
     return json;
 }
 ```
+
 ##### Execute a basket
-```c# 
+
+```c#
 public static string PostOrders(string accKey, string encKey, string basketId)
 {
     string timeStamp = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
@@ -696,8 +809,10 @@ public static string PostOrders(string accKey, string encKey, string basketId)
     return json;
 }
 ```
+
 ##### Get order status
-``` c#
+
+```c#
 public static string GetOrderStatus(string accKey, string encKey, string orderId)
 {
     string timeStamp = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
@@ -720,8 +835,10 @@ public static string GetOrderStatus(string accKey, string encKey, string orderId
     return json;
 }
 ```
+
 ##### Get output file
-``` c#
+
+```c#
 public static Stream GetOrderStream(string accKey, string encKey, string basketId)
 {
     string timeStamp = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
@@ -741,7 +858,8 @@ public static Stream GetOrderStream(string accKey, string encKey, string basketI
 ### Appendix 5: Examples in Java
 
 ### Necessary libraries
-``` java
+
+```java
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.File;
@@ -763,6 +881,7 @@ import com.google.gson.Gson;
 ```
 
 ##### Main program
+
 ```java
 public static void main(String[] args) throws Exception
 {
@@ -795,6 +914,7 @@ public static void main(String[] args) throws Exception
 ```
 
 ##### Create signature
+
 ```java
 public static String CreateHMACSig(String accKey, String encKey, String timestamp) throws Exception
 {
@@ -815,9 +935,10 @@ public static String CreateHMACSig(String accKey, String encKey, String timestam
     }
     return signature;
 }
-```  
+```
 
 ##### Retrieve a basket
+
 ```java
 public static void GetBaskets(String accKey, String encKey) throws Exception
 {
@@ -852,6 +973,7 @@ public static void GetBaskets(String accKey, String encKey) throws Exception
 ```
 
 ##### Execute a basket
+
 ```java
 public static String PostOrders(String accKey, String encKey, String basketId) throws Exception
 {
@@ -892,6 +1014,7 @@ public static String PostOrders(String accKey, String encKey, String basketId) t
 ```
 
 ##### Get order status
+
 ```java
 public static String GetOrderStatus(String accKey, String encKey, String orderID) throws Exception
 {
@@ -926,6 +1049,7 @@ public static String GetOrderStatus(String accKey, String encKey, String orderID
 ```
 
 ##### Get output file
+
 ```java
 public static InputStream GetOrderStream(String accKey, String encKey, String basketId) throws Exception
 {
@@ -952,9 +1076,12 @@ public static InputStream GetOrderStream(String accKey, String encKey, String ba
 ```
 
 ### Appendix 6: Examples in Python
+
 Note: Unlike most programming languages, Python is sensitive to whitespace, and the line breaks in these code samples have been distorted for clarity.
+
 ##### Necessary libraries
-```python 
+
+```python
 import requests
 import hashlib
 import hmac
@@ -965,6 +1092,7 @@ from time import sleep
 ```
 
 ##### API wrapper function
+
 ```python
 #####
 # Function: Make API request, including a freshly generated signature.
@@ -996,6 +1124,7 @@ def api_call(apiCommand, accKey, encKey, call_type="GET"):
 ```
 
 ##### Retrieve a basket
+
 ```python
 #####
 # Setup:
@@ -1030,7 +1159,7 @@ if order.status_code != 200:
 else:
     sleep(3)
     print("Successful Order! Status Code: " + str(order.status_code))
-    
+
 # 6. Download completed output.
 new_call = ("orders?type=baskets&id=" + basketId)
 get_basket = api_call(new_call, ACC_KEY, ENC_KEY)
@@ -1056,7 +1185,9 @@ print("DataFrame contains: " + num_columns + " columns & " + num_rows + " rows")
 ```
 
 ### Appendix 7: Examples in R
+
 ##### Necessary libraries
+
 ```R
 library(digest)
 library(jsonlite)
@@ -1064,6 +1195,7 @@ library(httr)
 ```
 
 ##### API wrapper function
+
 ```R
 #####
 # Function: Make API request, including a freshly generated signature.
@@ -1097,6 +1229,7 @@ api.call <- function(apiCommand, accKey, encKey, type="GET"){
 ```
 
 ##### Retrieve a basket
+
 ```R
 #####
 # Setup:
@@ -1153,23 +1286,27 @@ rm(processing.check, call, request)
 ```
 
 ### Further reading
+
 ##### API documentation and functionality
-*  [API key management](https://www.economy.com/myeconomy/api-key-info)
-*  [Technical user guide](https://github.com/moodysanalytics/databuffet.api.codesamples)
-*  [Code samples in C#, Java, Python, R](https://github.com/moodysanalytics/databuffet.api.codesamples)
-*  How to authenticate (See Authentication section)
+
+* [API key management](https://www.economy.com/myeconomy/api-key-info)
+* [Technical user guide](https://github.com/moodysanalytics/databuffet.api.codesamples)
+* [Code samples in C#, Java, Python, R](https://github.com/moodysanalytics/databuffet.api.codesamples)
+* How to authenticate (See Authentication section)
 
 ##### Background on Data Buffet
-*  [Using Data Buffet: Which series can you download?](https://www.economy.com/support/blog/buffet.aspx?did=A00FDE45-EC0B-4140-8378-0FA3474D85FA)
-*  [Using Data Buffet: Basket wild card expressions](https://www.economy.com/support/blog/buffet.aspx?did=F592EC67-B5CF-43B9-8BBD-82E89C0140E1)
-*  [Using Data Buffet: Basket fields](https://www.economy.com/support/blog/buffet.aspx?did=EFA51DE4-8382-44B2-9B54-F6B8F4C21A1A)
-*  [Using Data Buffet: Basket formulas](https://www.economy.com/support/blog/buffet.aspx?did=B23F0149-5CE1-47A5-8ACB-7516C7F8B7CD)
-*  [Using Data Buffet: Transformations](https://www.economy.com/support/blog/buffet.aspx?did=783658E9-93DA-4F85-A206-9D14FC44904F)
-*  [Using Data Buffet: Dates in basket output](https://www.economy.com/support/blog/buffet.aspx?did=A23B90D8-CABF-49CA-A86E-05B08BB3F9E7)
-*  [Using Data Buffet: Automatic retrieval](https://www.economy.com/support/blog/buffet.aspx?did=24CC205F-2724-4ADF-846C-701C26CFD5E0)
-*  [Using Power Tools: Introduction to v.8](https://www.economy.com/support/blog/buffet.aspx?did=AE76034C-A8B7-442A-9B67-55120260884D)
+
+* [Using Data Buffet: Which series can you download?](https://www.economy.com/support/blog/buffet.aspx?did=A00FDE45-EC0B-4140-8378-0FA3474D85FA)
+* [Using Data Buffet: Basket wild card expressions](https://www.economy.com/support/blog/buffet.aspx?did=F592EC67-B5CF-43B9-8BBD-82E89C0140E1)
+* [Using Data Buffet: Basket fields](https://www.economy.com/support/blog/buffet.aspx?did=EFA51DE4-8382-44B2-9B54-F6B8F4C21A1A)
+* [Using Data Buffet: Basket formulas](https://www.economy.com/support/blog/buffet.aspx?did=B23F0149-5CE1-47A5-8ACB-7516C7F8B7CD)
+* [Using Data Buffet: Transformations](https://www.economy.com/support/blog/buffet.aspx?did=783658E9-93DA-4F85-A206-9D14FC44904F)
+* [Using Data Buffet: Dates in basket output](https://www.economy.com/support/blog/buffet.aspx?did=A23B90D8-CABF-49CA-A86E-05B08BB3F9E7)
+* [Using Data Buffet: Automatic retrieval](https://www.economy.com/support/blog/buffet.aspx?did=24CC205F-2724-4ADF-846C-701C26CFD5E0)
+* [Using Power Tools: Introduction to v.8](https://www.economy.com/support/blog/buffet.aspx?did=AE76034C-A8B7-442A-9B67-55120260884D)
 
 ### Glossary
+
 **access key:** Part of the credentials used to access the Data Buffet API. A unique 36-character hexadecimal string, which is combined with the encryption key (qv) to produce the signature (qv).
 
 **API:** Application programming interface. Generically, a set of function signatures (input and output parameters) to perform documented behavior. See also: web API (qv).
@@ -1253,6 +1390,7 @@ rm(processing.check, call, request)
 **web API:** A programmatic, server-side interface consisting of one or more endpoints (qv), typically expressed in JSON (qv) or XML, and exposed to the web, typically by an HTTP server.
 
 ## About Moody’s Analytics
+
 Moody’s Analytics helps capital markets and credit risk management professionals worldwide respond to an evolving marketplace with confidence. With its team of economists, the company offers unique tools and best practices for measuring and managing risk through expertise and experience in credit analysis, economic research, and financial risk management. By offering leading-edge software and advisory services, as well as the proprietary credit research produced by Moody’s Investors Service, Moody’s Analytics integrates and customizes its offerings to address specific business challenges.
 
 Concise and timely economic research by Moody’s Analytics supports fi rms and policymakers in strategic planning, product and sales forecasting, credit risk and sensitivity management, and investment research. Our economic research publications provide in-depth analysis of the global economy, including the U.S. and all of its state and metropolitan areas, all European countries and their subnational areas, Asia, and the Americas. We track and forecast economic growth and cover specialized topics such as labor markets, housing, consumer spending and credit, output and income, mortgage activity, demographics, central bank behavior, and prices. We also provide real-time monitoring of macroeconomic indicators and analysis on timely topics such as monetary policy and sovereign risk. Our clients include multinational corporations, governments at all levels, central banks, financial regulators, retailers, mutual funds, financial institutions, utilities, residential and commercial real estate firms, insurance companies, and professional investors.
@@ -1264,17 +1402,18 @@ Moody’s Analytics is a subsidiary of Moody’s Corporation (NYSE: MCO). Furthe
 DISCLAIMER: Moody’s Analytics, a unit of Moody’s Corporation, provides economic analysis, credit risk data and insight, as well as risk management solutions. Research authored by Moody’s Analytics does not reflect the opinions of Moody’s Investors Service, the credit rating agency. To avoid confusion, please use the full company name “Moody’s Analytics”, when citing views from Moody’s Analytics.
 
 ## About Moody’s Corporation
+
 Moody’s is an essential component of the global capital markets, providing credit ratings, research, tools and analysis that contribute to transparent and integrated financial markets. **Moody’s Corporation** (NYSE: MCO) is the parent company of Moody’s Investors Service, which provides credit ratings and research covering debt instruments and securities, and **Moody’s Analytics**, which encompasses the growing array of Moody’s nonratings businesses, including risk management software for financial institutions, quantitative credit analysis tools, economic research and data services, data and analytical tools for the structured finance market, and training and other professional services. The corporation, which reported revenue of $3.6 billion in 2016, employs approximately 11,500 people worldwide and maintains a presence in 41 countries.
 
 © 2019 Moody’s Corporation, Moody’s Investors Service, Inc., Moody’s Analytics, Inc. and/or their licensors and affiliates (collectively, “MOODY’S”). All rights reserved.
 
-**CREDIT RATINGS ISSUED BY MOODY’S INVESTORS SERVICE, INC. AND ITS RATINGS AFFILIATES (“MIS”) ARE MOODY’S CURRENT OPINIONS OF THE RELATIVE FUTURE CREDIT RISK OF ENTITIES, CREDIT COMMITMENTS, OR DEBT OR DEBT-LIKE SECURITIES, AND MOODY’S PUBLICATIONS MAY INCLUDE MOODY’S CURRENT OPINIONS OF THE RELATIVE FUTURE CREDIT RISK OF ENTITIES, CREDIT COMMIT-MENTS, OR DEBT OR DEBT-LIKE SECURITIES. MOODY’S DEFINES CREDIT RISK AS THE RISK THAT AN ENTITY MAY NOT MEET ITS CONTRAC-TUAL, FINANCIAL OBLIGATIONS AS THEY COME DUE AND ANY ESTIMATED FINANCIAL LOSS IN THE EVENT OF DEFAULT. CREDIT RATINGS DO NOT ADDRESS ANY OTHER RISK, INCLUDING BUT NOT LIMITED TO: LIQUIDITY RISK, MARKET VALUE RISK, OR PRICE VOLATILITY. CREDIT RATINGS AND MOODY’S OPINIONS INCLUDED IN MOODY’S PUBLICATIONS ARE NOT STATEMENTS OF CURRENT OR HISTORICAL FACT. MOODY’S PUBLICATIONS MAY ALSO INCLUDE QUANTITATIVE MODEL-BASED ESTIMATES OF CREDIT RISK AND RELATED OPINIONS OR COMMENTARY PUBLISHED BY MOODY’S ANALYTICS, INC. CREDIT RATINGS AND MOODY’S PUBLICATIONS DO NOT CONSTITUTE OR PROVIDE INVESTMENT OR FINANCIAL ADVICE, AND CREDIT RATINGS AND MOODY’S PUBLICATIONS ARE NOT AND DO NOT PROVIDE RECOMMENDATIONS TO PURCHASE, SELL, OR HOLD PARTICULAR SECURITIES. NEITHER CREDIT RATINGS NOR MOODY’S PUBLICATIONS COMMENT ON THE SUITABILITY OF AN INVESTMENT FOR ANY PARTICULAR INVESTOR. MOODY’S ISSUES ITS CREDIT RATINGS AND PUB-LISHES MOODY’S PUBLICATIONS WITH THE EXPECTATION AND UNDERSTANDING THAT EACH INVESTOR WILL, WITH DUE CARE, MAKE ITS OWN STUDY AND EVALUATION OF EACH SECURITY THAT IS UNDER CONSIDERATION FOR PURCHASE, HOLDING, OR SALE.** 
+**CREDIT RATINGS ISSUED BY MOODY’S INVESTORS SERVICE, INC. AND ITS RATINGS AFFILIATES (“MIS”) ARE MOODY’S CURRENT OPINIONS OF THE RELATIVE FUTURE CREDIT RISK OF ENTITIES, CREDIT COMMITMENTS, OR DEBT OR DEBT-LIKE SECURITIES, AND MOODY’S PUBLICATIONS MAY INCLUDE MOODY’S CURRENT OPINIONS OF THE RELATIVE FUTURE CREDIT RISK OF ENTITIES, CREDIT COMMIT-MENTS, OR DEBT OR DEBT-LIKE SECURITIES. MOODY’S DEFINES CREDIT RISK AS THE RISK THAT AN ENTITY MAY NOT MEET ITS CONTRAC-TUAL, FINANCIAL OBLIGATIONS AS THEY COME DUE AND ANY ESTIMATED FINANCIAL LOSS IN THE EVENT OF DEFAULT. CREDIT RATINGS DO NOT ADDRESS ANY OTHER RISK, INCLUDING BUT NOT LIMITED TO: LIQUIDITY RISK, MARKET VALUE RISK, OR PRICE VOLATILITY. CREDIT RATINGS AND MOODY’S OPINIONS INCLUDED IN MOODY’S PUBLICATIONS ARE NOT STATEMENTS OF CURRENT OR HISTORICAL FACT. MOODY’S PUBLICATIONS MAY ALSO INCLUDE QUANTITATIVE MODEL-BASED ESTIMATES OF CREDIT RISK AND RELATED OPINIONS OR COMMENTARY PUBLISHED BY MOODY’S ANALYTICS, INC. CREDIT RATINGS AND MOODY’S PUBLICATIONS DO NOT CONSTITUTE OR PROVIDE INVESTMENT OR FINANCIAL ADVICE, AND CREDIT RATINGS AND MOODY’S PUBLICATIONS ARE NOT AND DO NOT PROVIDE RECOMMENDATIONS TO PURCHASE, SELL, OR HOLD PARTICULAR SECURITIES. NEITHER CREDIT RATINGS NOR MOODY’S PUBLICATIONS COMMENT ON THE SUITABILITY OF AN INVESTMENT FOR ANY PARTICULAR INVESTOR. MOODY’S ISSUES ITS CREDIT RATINGS AND PUB-LISHES MOODY’S PUBLICATIONS WITH THE EXPECTATION AND UNDERSTANDING THAT EACH INVESTOR WILL, WITH DUE CARE, MAKE ITS OWN STUDY AND EVALUATION OF EACH SECURITY THAT IS UNDER CONSIDERATION FOR PURCHASE, HOLDING, OR SALE.**
 
 MOODY’S CREDIT RATINGS AND MOODY’S PUBLICATIONS ARE NOT INTENDED FOR USE BY RETAIL INVESTORS AND IT WOULD BE RECKLESS AND INAPPROPRIATE FOR RETAIL INVESTORS TO USE MOODY’S CREDIT RATINGS OR MOODY’S PUBLICATIONS WHEN MAKING AN INVESTMENT DECISION. IF IN DOUBT YOU SHOULD CONTACT YOUR FINANCIAL OR OTHER PROFESSIONAL ADVISER.
 
-ALL INFORMATION CONTAINED HEREIN IS PROTECTED BY LAW, INCLUDING BUT NOT LIMITED TO, COPYRIGHT LAW, AND NONE OF SUCH IN-FORMATION MAY BE COPIED OR OTHERWISE REPRODUCED, REPACKAGED, FURTHER TRANSMITTED, TRANSFERRED, DISSEMINATED, REDISTRIB-UTED OR RESOLD, OR STORED FOR SUBSEQUENT USE FOR ANY SUCH PURPOSE, IN WHOLE OR IN PART, IN ANY FORM OR MANNER OR BY ANY MEANS WHATSOEVER, BY ANY PERSON WITHOUT MOODY’S PRIOR WRITTEN CONSENT. 
+ALL INFORMATION CONTAINED HEREIN IS PROTECTED BY LAW, INCLUDING BUT NOT LIMITED TO, COPYRIGHT LAW, AND NONE OF SUCH IN-FORMATION MAY BE COPIED OR OTHERWISE REPRODUCED, REPACKAGED, FURTHER TRANSMITTED, TRANSFERRED, DISSEMINATED, REDISTRIB-UTED OR RESOLD, OR STORED FOR SUBSEQUENT USE FOR ANY SUCH PURPOSE, IN WHOLE OR IN PART, IN ANY FORM OR MANNER OR BY ANY MEANS WHATSOEVER, BY ANY PERSON WITHOUT MOODY’S PRIOR WRITTEN CONSENT.
 
-All information contained herein is obtained by MOODY’S from sources believed by it to be accurate and reliable. Because of the possibility of human or mechanical error as well as other factors, however, all information contained herein is provided “AS IS” without warranty of any kind. MOODY’S adopts all necessary measures so that the information it uses in assigning a credit rating is of sufficient quality and from sources MOODY’S considers to be reliable including, when appropriate, independent third-party sources. However, MOODY’S is not an auditor and cannot in every instance independently verify or validate information received in the rating process or in preparing the Moody’s publications. 
+All information contained herein is obtained by MOODY’S from sources believed by it to be accurate and reliable. Because of the possibility of human or mechanical error as well as other factors, however, all information contained herein is provided “AS IS” without warranty of any kind. MOODY’S adopts all necessary measures so that the information it uses in assigning a credit rating is of sufficient quality and from sources MOODY’S considers to be reliable including, when appropriate, independent third-party sources. However, MOODY’S is not an auditor and cannot in every instance independently verify or validate information received in the rating process or in preparing the Moody’s publications.
 
 To the extent permitted by law, MOODY’S and its directors, officers, employees, agents, representatives, licensors and suppliers disclaim liability to any person or entity for any indirect, special, consequential, or incidental losses or damages whatsoever arising from or in connection with the information contained herein or the use of or inability to use any such information, even if MOODY’S or any of its directors, officers, employees, agents, representatives, licensors or suppliers is advised in advance of the possibility of such losses or damages, including but not limited to: (a) any loss of present or prospective profi ts or (b) any loss or damage arising where the relevant financial instrument is not the subject of a particular credit rating assigned by MOODY’S.
 
@@ -1291,14 +1430,3 @@ Additional terms for Japan only: Moody’s Japan K.K. (“MJKK”) is a wholly-o
 MJKK or MSFJ (as applicable) hereby disclose that most issuers of debt securities (including corporate and municipal bonds, debentures, notes and commercial paper) and preferred stock rated by MJKK or MSFJ (as applicable) have, prior to assignment of any rating, agreed to pay to MJKK or MSFJ (as applicable) for appraisal and rating services rendered by it fees ranging from JPY200,000 to approximately JPY350,000,000.
 
 MJKK and MSFJ also maintain policies and procedures to address Japanese regulatory requirements.
-
-
-
-
-
-
-
-
-
-
-
