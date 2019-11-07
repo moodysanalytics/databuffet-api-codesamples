@@ -160,6 +160,19 @@ buffetSearch <- function(query="",start="",rows="", popularitySort="",
               extract2("rel_title_exact") %>%
               View()               
               
-              
-              
             
+            
+#######################################################################################################                          
+# Example 4: Find out what the GeoCode for the country/jurisdiction of Greenland is             
+#######################################################################################################              
+            mySearch4 <- buffetSearch(query="geo_title:Greenland|AND|geo_type_title_exact:Countries/Jurisdictions",
+                                      start=0,
+                                      rows = 1,
+                                      ACC_KEY = ACC_KEY,
+                                      ENC_KEY = ENC_KEY)
+            
+            # See geo code for Greenland Search Results 
+            results <- mySearch4 %>% extract2("Results") %>% as.data.frame()
+            results %>% extract("geo_rfa") %>%   View()
+              
+              
