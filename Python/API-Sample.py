@@ -1,3 +1,8 @@
+
+
+
+
+
 #####
 # Data Buffet API
 # Code sample: Python
@@ -47,9 +52,9 @@ def api_call(apiCommand, accKey, encKey, call_type="GET"):
 # 1. Store your access key, encryption key, and basket name.
 # Get your keys at:
 # https://www.economy.com/myeconomy/api-key-info
-ACC_KEY = "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-ENC_KEY = "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-BASKET_NAME = "Test Basket"
+ACC_KEY = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+ENC_KEY = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+BASKET_NAME = "TEST BASKET NAME"
 
 #####
 # Identify a basket to execute:
@@ -70,13 +75,15 @@ print("Order ID: " + orderId)
 #####
 # Download the output:
 # 5. Periodically check if the order has completed.
-if order.status_code != 200:
-  sleep(3)
-  print("Failed! Status Code: "+ str(order.status_code))
-else:
-  sleep(3)
-  print("Successful Order! Status Code: " + str(order.status_code))
-
+call = "orders/" + orderId
+processing_check = True
+while processing_check:
+    sleep(5)
+    status = api_call(call, ACC_KEY, ENC_KEY)
+    processing_check = json.loads(status.content.decode('utf-8'))['processing']
+    print('processing: ' + str(processing_check))  
+  
+  
 # 6. Download completed output.
 new_call = ("orders?type=baskets&id=" + basketId)
 get_basket = api_call(new_call, ACC_KEY, ENC_KEY)
@@ -99,4 +106,3 @@ num_rows = str(len(data_df.index))
 num_columns = str(len(data_df.columns))
 print("Ready to use "+ BASKET_NAME + " DataFrame!")
 print("DataFrame contains: " + num_columns + " columns & " + num_rows + " rows")
-
