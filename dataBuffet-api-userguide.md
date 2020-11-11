@@ -1,6 +1,6 @@
 # Moody's Analytics Data Buffet API User Guide
 
-_version 1.13.1_
+_version 1.15.5_
 
 ## Introduction
 
@@ -25,6 +25,7 @@ The API’s core functionality is expressed by three groups of endpoints:
   * Get a list of orders
   * Check the status of a given order
   * Return the output of a completed order.
+*_/vintages_ - An endpoint to retrieve vintages/versions (and other vintage metadata) available for a series.
 
 The API also provides some helper endpoints that are used for returning enumerations. For more information, please see <https://github.com/moodysanalytics/databuffet.api.codesamples>.
 
@@ -150,8 +151,9 @@ All examples in this section use the access key, time stamp, and signature gener
 
 ### Retrieve a single series
 
-The _/series?m={m}&freq={freq}&trans={trans}_ endpoint is used to download a single series specified by a mnemonic
-or expression. The first parameter, m, is mandatory; The optional parameters freq, trans, conv perform a frequency conversion, apply a transformation and apply conversion type, respectively. startDate and endDate parameters are also optional and should be in YYYY-MM-dd format. If omitted, the API will use default values. For valid codes, see the Enumerations appendix.
+The _/series?m={m}&freq={freq}&trans={trans}&startDate={startDate}&endDate={endDate}&vintage={vintage}&vintageVersion={vintageVersion}_ endpoint is used to download a single series specified by a mnemonic
+or expression. See table after /multiseries end point for list of parameters. If any parameter is omitted, the API will use default values. For valid codes, see the Enumerations appendix.
+
 
 ##### Figure 7a. Request using HAMC Signature
 
@@ -216,7 +218,22 @@ curl -X GET \
 
 ### Retrieve multi series
 
-The _/multi-series?m={m}&freq={freq}&trans={trans}&conv={conv}&startDate={startDate}&endDate={endDate}_ endpoint is used to download multi series specified by a mnemonic or expression. The first parameter, m, is mandatory. m is a semicolon seperated list of mnemonics. The optional parameters freq, trans, conv perform a frequency conversion, apply a transformation and apply conversion type, respectively. startDate and endDate parameters are also optional and should be in YYYY-MM-dd format. If omitted, the API will use default values. For valid codes, see the Enumerations appendix.
+The _/multi-series?m={m}&freq={freq}&trans={trans}&conv={conv}&startDate={startDate}&endDate={endDate}&vintage={vintage}&vintageVersion={vintageVersion}_ endpoint is used to download multi series specified by list of mnemonic or expression. See below table for list of parameters. If any parameter is omitted, the API will use default values. For valid codes, see the Enumerations appendix.
+
+**Maximum of 25 series per request can be retrived using multi-series endpoint**
+**If dates are specified then a date range is required.**
+
+#### Parameter Table
+| Parameter             | Description														         | Required/Optional |
+| --------------------- | -------------------------------------------------------------------------- | ---------------- |
+| **m**				    | mnemonic or expression (semicolon separated list in /multiseries endpoint) | Required			|
+| **freq**			    | perform a frequency conversion											 | Optional			|
+| **trans**			    | apply a transformation													 | Optional			|
+| **conv**			    | apply conversion type														 | Optional			|
+| **startDate**		    | Start date of data series (format YYYY-MM-DD)								 | Optional			|
+| **endDate**		    | End date of data series (format YYYY-MM-DD)								 | Optional			|
+| **vintage**			| Vintage of data series (format YYYYMM or YYYYQ# or YYYY ) 				 | Optional			|
+| **vintageVersion**	| Vintage Version data series. (e.g 1, 2, 3)								 | Optional			|
 
 ##### Figure 9. Request using oAuth Token
 
@@ -422,18 +439,72 @@ If the order is not finished running, _dateFinished_ is set to _null_. In that c
 
 After making sure that your order is completed, it is now time to download the output file associated with the execution of the basket. The output file type is set as part of the basket’s configuration and cannot be altered via the API. Note that the _id_ used in this request is the _basketId_.
 
-##### Figure 17. Request using oAuth Token
-
+##### Request using oAuth Token
+For Postman request
+##### Figure 17.a.
 ```
 curl -X GET \
    'https://api.economy.com/data/v1/orders?type=baskets&id=5DA8BDFD-8E8F-46F6-AC50-64C1814542EE'\
    -H 'Authorization: Bearer SrZ5UkbzPn432zqMLgV3Ja'
 ```
-
+Use below url for swagger
+##### Figure 17.b.
+https://api.economy.com/data/v1/swagger/ui/index#!/Baskets/Baskets_Download
 ##### Response
 
 The response of this request is the binary of the output file associated with the basket. You will need to write this binary stream to a file
 using the same file name and extension as specified in your basket options. See the Appendix for samples in C#, Java, Python, and R.
+
+
+### Retrieve vintages for a series
+
+The _/vintages?m={m}_ endpoint is used to retrieve vintages/versions (and other vintage metadata) available for a single series specified by mnemonic m. m is a required parameter.
+
+##### Figure 18. Request using oAuth Token
+
+```
+curl -X GET \
+'https://api.economy.com/data/v1/vintages?m=fet.iusa' \
+-H 'Authorization: Bearer SrZ5UkbzPn432zqMLgV3Ja' 
+```
+
+##### Figure 8. Response
+
+```json
+[
+    {
+        "vintage": "202003",
+        "version": 1,
+        "dbName": "USFOR_202003.db",
+        "datePublishedUtc": "2020-04-02T17:41:00",
+        "note": null
+    },
+    {
+        "vintage": "202002",
+        "version": 1,
+        "dbName": "USFOR_202002.db",
+        "datePublishedUtc": "2020-04-02T17:41:00",
+        "note": null
+    },
+    {
+        "vintage": "202001",
+        "version": 1,
+        "dbName": "USFOR_202001.db",
+        "datePublishedUtc": "2020-04-02T17:41:00",
+        "note": null
+    },
+	.......
+
+	{
+        "vintage": "201001",
+        "version": 1,
+        "dbName": "USFOR_201001.db",
+        "datePublishedUtc": "2020-04-02T17:40:00",
+        "note": null
+    }
+]
+```
+
 
 ### Frequently asked questions
 
@@ -526,9 +597,9 @@ All API endpoints below are relative to the root URL https://api.economy.com/dat
 | HTTP             | Endpoint                                                                                         | Description                                                                               |
 | ---------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
 | **Series**       |
-| GET              | series?m={m}&freq={freq}&trans={trans}&conv={conv}&startDate={startDate}&endDate={endDate}       | Return a series (metadata and numeric observations) formatted in JSON.                    |
+| GET              | series?m={m}&freq={freq}&trans={trans}&conv={conv}&startDate={startDate}&endDate={endDate}&vintage={vintage}&vintageVersion={vintageVersion}       | Return a series (metadata and numeric observations) formatted in JSON.                    |
 | **Multi Series** |
-| GET              | multi-series?m={m}&freq={freq}&trans={trans}&conv={conv}&startDate={startDate}&endDate={endDate} | Returns an array of series data formatted in JSON.                                        |
+| GET              | multi-series?m={m}&freq={freq}&trans={trans}&conv={conv}&startDate={startDate}&endDate={endDate}&vintage={vintage}&vintageVersion={vintageVersion} | Returns an array of series data formatted in JSON.                                        |
 | **Baskets**      |
 | GET              | baskets?filetype={filetype}&page={page}&size={size}                                              | Return a JSON list describing baskets available for execution. Optionally paginated.      |
 | GET              | baskets/output-file?id={id}                                                                      | Returns the streamed file content that was generated the last time a basket was executed. |
@@ -544,6 +615,8 @@ All API endpoints below are relative to the root URL https://api.economy.com/dat
 | DELETE           | orders/{orderId}                                                                                 | Delete an order from the queue.                                                           |
 | **File types**   |
 | GET              | filetypes?type={type}                                                                            | Return the file types available for a given object type.                                  |
+| **Vintages**   |
+| GET              | vintages?m={m}                                                                            | Return vintages/versions (and other vintage metadata) available for that series                                  |
 
 ### Appendix 2: Error messages
 
