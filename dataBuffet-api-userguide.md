@@ -1,6 +1,6 @@
 # Moody's Analytics Data Buffet API User Guide
 
-_version 1.15.5_
+_version 1.16.0_
 
 ## Introduction
 
@@ -18,6 +18,10 @@ The API’s core functionality is expressed by three groups of endpoints:
   * Get the contents of a given basket – The content of a basket is a list of mnemonics or other expressions, not the time
     series data. To obtain the time series data and the associated metadata, a basket must be executed via the /orders
     endpoint.
+  * Create a basket
+  * Edit a basket
+  * Add Series to existing basket
+  * Delete baskets
 * _/orders_ – A collection of endpoints to create and manage orders and to retrieve the basket output associated with a completed
   order.
   * Place an order
@@ -324,6 +328,184 @@ For brevity, the date and value information of data is trimmed.
 }
 ```
 
+### Create a basket
+
+While creating a basket _title_ in the body is required as this will be the title of new basket.
+
+##### Figure 11. Request using oAuth Token
+
+```
+curl -X POST 'https://api.economy.com/data/v1/baskets' \
+-H 'Content-Type: application/json' \
+-H 'Authorization: Bearer SrZ5UkbzPn432zqMLgV3Ja'\
+--data-raw '{
+    "title": "API-Test",
+    "dateStart": "0001-01-01T00:00:00",
+    "dateEnd": "0001-01-01T00:00:00",
+    "dateFormat": 0,
+    "datePeriod": 0,
+    "fileName": "API-Test-Basket",
+    "fileTypeId": 30,
+    "options": {
+        "dateOption": 2,
+        "ignoreMissing": false,
+        "layoutAcross": false,
+        "offset": false,
+        "showXls": false,
+        "showMnemonic": true,
+        "showConcept": false,
+        "showDescription": true,
+        "showSource": true,
+        "showDatabankName": false,
+        "showFrequency": true,
+        "showConversion": false,
+        "showTransformation": false,
+        "showGeoTitle": true,
+        "showGeoFip": false,
+        "showMaGeocode": false,
+        "sortDescription": false,
+        "showDateColumn": false,
+        "showStartDate": false,
+        "showEndDate": false,
+        "showUpdateDate": false,
+        "showDownloadDate": false,
+        "showSeriesDates": false,
+        "showLastHistory": false,
+        "conversionType": 2
+    },
+    "frequency": 0,
+    "transformation": 0,
+    "decimal": 2,
+    "series": [ {
+            "mnemonic" : "FET.NJ",
+            "decimal" : 2
+        },
+        {
+            "mnemonic" : "FET.NY"
+        },
+        {
+            "mnemonic" : "FET.DE"
+        }]
+}'
+```
+
+##### Figure 12. Response
+
+In response, api will generate a basket id, which can be used for other endpoints.
+
+```json
+{
+    "basketId": "85B9FE18-F619-4786-953A-7ECF42936C87",
+    "basketName": "API-Test"
+}
+```
+
+### Add series to a basket
+
+A list of series can be added to an existing basket with the use of this endpoint.
+
+##### Figure 13. Request using oAuth Token
+
+```
+curl -X POST 'https://api.economy.com/data/v1/baskets/606F5064-D0A6-48DD-A7E5-D7016328666D/Series/' \
+-H 'Content-Type: application/json' \
+-H 'Authorization: Bearer SrZ5UkbzPn432zqMLgV3Ja'\
+--data-raw '[
+        {
+            "mnemonic" : "FET.PA",
+            "decimal" : 2
+        },
+        {
+            "mnemonic" : "FET.CA"
+        }
+     
+    ]'
+
+}'
+```
+
+### Update a basket
+
+This endpoint can be used to update the settings of an existing basket. It can also be used if you want to replace all of the series in this basket.
+
+##### Figure 14. Request using oAuth Token
+
+```
+curl -X POST 'https://api.economy.com/data/v1/baskets/606F5064-D0A6-48DD-A7E5-D7016328666D' \
+-H 'Content-Type: application/json' \
+-H 'Authorization: Bearer SrZ5UkbzPn432zqMLgV3Ja'
+--data-raw '{
+    "title": "API-Test-Edit",
+    "dateStart": "0001-01-01T00:00:00",
+    "dateEnd": "0001-01-01T00:00:00",
+    "dateFormat": 0,
+    "datePeriod": 0,
+    "fileName": "API-Test-Basket",
+    "fileTypeId": 30,
+    "options": {
+        "dateOption": 2,
+        "ignoreMissing": false,
+        "layoutAcross": false,
+        "offset": false,
+        "showXls": false,
+        "showMnemonic": true,
+        "showConcept": false,
+        "showDescription": true,
+        "showSource": true,
+        "showDatabankName": false,
+        "showFrequency": true,
+        "showConversion": false,
+        "showTransformation": false,
+        "showGeoTitle": true,
+        "showGeoFip": false,
+        "showMaGeocode": false,
+        "sortDescription": false,
+        "showDateColumn": false,
+        "showStartDate": false,
+        "showEndDate": false,
+        "showUpdateDate": false,
+        "showDownloadDate": false,
+        "showSeriesDates": false,
+        "showLastHistory": false,
+        "conversionType": 2
+    },
+    "frequency": 0,
+    "transformation": 3,
+    "decimal": 4
+}'
+```
+
+##### Figure 15. Response
+
+```json
+{
+    "basketId": "606F5064-D0A6-48DD-A7E5-D7016328666D",
+    "basketName": "API-Test-Edit"
+}
+```
+
+### Delete baskets
+
+This endpoint can be used to delete single/multiple baskets.
+
+##### Figure 16. Request using oAuth Token
+
+```
+curl -X DELETE 'https://api.economy.com/data/v1/baskets' \
+-H 'Content-Type: application/json' \
+-H 'Authorization: Bearer SrZ5UkbzPn432zqMLgV3Ja'
+--data-raw '["606F5064-D0A6-48DD-A7E5-D7016328666D"]'
+
+```
+
+##### Figure 17. Response
+
+```json
+[
+    "606F5064-D0A6-48DD-A7E5-D7016328666D"
+]
+```
+
 ### Executing a basket and downloading its output: Overview
 
 Since the above endpoint _(/series)_ allows for downloading only a single series at a time, we do not recommend it for pulling down large sets of data. Instead, it is more efficient to define a basket on Data Buffet, then execute it and download its output via the API. To do so, use the _/baskets_ and _/orders_ endpoints together:
@@ -335,11 +517,12 @@ Since the above endpoint _(/series)_ allows for downloading only a single series
 5.  Since the execution of a basket takes time to complete, use this orderId value in a call to the GET _orders/{orderId}_ endpoint to get the details on whether the process has completed. Whether the process has completed is indicated by the _dateFinished_ response value. If null, the process is still executing; if not null, the process has completed.
 6.  Once the process is complete, the final step is to retrieve the output file by calling the _GET/orders?id={id}&type=baskets_ endpoint. Like the POST request that executed the basket in Step 3, set the _{id}_ parameter to the _basketId_.
 
+
 **Pay attention to the distinction between the permanent ID of the basket that is being executed _(basketId)_ and the _transient ID_ assigned to the order that is performing this task _(orderId)_. Use the latter only when checking if an order has completed.**
 
 ### Retrieve a list of your saved baskets
 
-##### Figure 11. Request using oAuth Token
+##### Figure 18. Request using oAuth Token
 
 ```
 curl -X GET \
@@ -347,7 +530,7 @@ curl -X GET \
    -H 'Authorization: Bearer SrZ5UkbzPn432zqMLgV3Ja'
 ```
 
-##### Figure 12. Response
+##### Figure 19. Response
 
 For brevity, only two baskets with a trimmed list of attributes are shown.
 
@@ -373,11 +556,13 @@ For brevity, only two baskets with a trimmed list of attributes are shown.
 ]
 ```
 
+
+
 ### Execute a basket
 
 We choose to execute the first basket returned from the prior request _(basketId 5DA8BDFD-8E8F-46F6-AC50-64C1814542EE)_.
 
-##### Figure 13. Request using oAuth Token
+##### Figure 20. Request using oAuth Token
 
 ```
 curl -X POST \
@@ -385,7 +570,7 @@ curl -X POST \
   -H 'Authorization: Bearer SrZ5UkbzPn432zqMLgV3Ja'
 ```
 
-##### Figure 14. Response
+##### Figure 21. Response
 
 ```json
 {
@@ -407,7 +592,7 @@ curl -X POST \
 
 Since the previous request returns an _orderId(DF0AB8F3-19D3-4D7D-9AE5-CB410FC6B6E7)_, we use that value to check if our basket execution order has finished running.
 
-##### Figure 15. Request using oAuth Token
+##### Figure 22. Request using oAuth Token
 
 ```
 curl -X GET \
@@ -415,7 +600,7 @@ curl -X GET \
    -H 'Authorization: Bearer SrZ5UkbzPn432zqMLgV3Ja'
 ```
 
-##### Figure 16. Response
+##### Figure 23. Response
 
 ```json
 {
@@ -441,14 +626,14 @@ After making sure that your order is completed, it is now time to download the o
 
 ##### Request using oAuth Token
 For Postman request
-##### Figure 17.a.
+##### Figure 24.a.
 ```
 curl -X GET \
    'https://api.economy.com/data/v1/orders?type=baskets&id=5DA8BDFD-8E8F-46F6-AC50-64C1814542EE'\
    -H 'Authorization: Bearer SrZ5UkbzPn432zqMLgV3Ja'
 ```
 Use below url for swagger
-##### Figure 17.b.
+##### Figure 24.b.
 https://api.economy.com/data/v1/swagger/ui/index#!/Baskets/Baskets_Download
 ##### Response
 
@@ -460,7 +645,7 @@ using the same file name and extension as specified in your basket options. See 
 
 The _/vintages?m={m}_ endpoint is used to retrieve vintages/versions (and other vintage metadata) available for a single series specified by mnemonic m. m is a required parameter.
 
-##### Figure 18. Request using oAuth Token
+##### Figure 25. Request using oAuth Token
 
 ```
 curl -X GET \
@@ -468,7 +653,7 @@ curl -X GET \
 -H 'Authorization: Bearer SrZ5UkbzPn432zqMLgV3Ja' 
 ```
 
-##### Figure 8. Response
+##### Figure 26. Response
 
 ```json
 [
@@ -604,7 +789,11 @@ All API endpoints below are relative to the root URL https://api.economy.com/dat
 | GET              | baskets?filetype={filetype}&page={page}&size={size}                                              | Return a JSON list describing baskets available for execution. Optionally paginated.      |
 | GET              | baskets/output-file?id={id}                                                                      | Returns the streamed file content that was generated the last time a basket was executed. |
 | GET              | baskets/{id}                                                                                     | Return a single basket.                                                                   |
-| GET              | baskets/{id}/contents?page={page}&size={size}                                                    | Retrieve the contents of a basket.                                                        |
+| GET              | baskets/{id}/contents?page={page}&size={size}                                                    | Retrieve the contents of a basket.  
+| POST             | /baskets/       | Creates a new basket|
+| POST | baskets/{{basketId}}/Series/  | Add mnemonis to existing series|
+| POST | baskets/{{basketId}}     | Edit all of the options in a basket|                           
+| DELETE | baskets/ | Delete a list of baskets                |
 | **Frequency**    |
 | GET              | frequencies                                                                                      | Return a list of frequency codes                                                          |
 | **Orders**       |
