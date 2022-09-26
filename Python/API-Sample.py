@@ -1,8 +1,3 @@
-
-
-
-
-
 #####
 # Data Buffet API
 # Code sample: Python
@@ -16,6 +11,8 @@ import datetime
 import json
 import pandas as pd
 from time import sleep
+from io import BytesIO
+import binascii
 
 #####
 # Function: Make API request, including a freshly generated signature.
@@ -87,16 +84,15 @@ while processing_check:
 # 6. Download completed output.
 new_call = ("orders?type=baskets&id=" + basketId)
 get_basket = api_call(new_call, ACC_KEY, ENC_KEY)
-get_basket = (str(get_basket.content).split("\\r\\n"))
+
+## Choose one from below two line of codes:
+get_basket = (str(get_basket.content).split("\\r\\n"))   ## This line of code for csv files
+get_basket = pd.read_excel(BytesIO(get_basket.content))  ## This line of code for xlsx files
 
 # 7. Format the data frame.
 data_df= pd.DataFrame(get_basket)
 data_df = data_df[0].str.split(',', expand=True)
 headers = data_df.iloc[0]
-headers[0] = "Mnemonic"
-data_df.columns = headers
-data_df = data_df.set_index(data_df["Mnemonic"])
-data_df = data_df[:-1]
 data_df.dropna(axis=1, how='all')
 filter = data_df != ""
 data_df = data_df[filter]
