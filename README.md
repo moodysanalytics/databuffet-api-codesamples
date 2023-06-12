@@ -30,7 +30,7 @@ Please see documentation [here](https://github.com/moodysanalytics/databuffet.ap
 
 Please contact the Data Buffet API team at Moody's Analytics at either:
 * https://www.economy.com/about/contact-us with Topic set to "technical inquiry"
-* By email at help@economy.com, with a Subject line of "Data Buffet API technical inquiry"
+* By email at helpeconomy@moodys.com, with a Subject line of "Data Buffet API technical inquiry"
 
 ## License
 
