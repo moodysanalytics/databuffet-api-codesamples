@@ -21,7 +21,10 @@ Please see documentation [here](https://github.com/moodysanalytics/databuffet.ap
 
 * C#: for Microsoft Visual Studio, with .sln "solutions" file to build "APICodeSample"
 * Java: for Eclipse, with .iml "IntelliJ module" file to build "API Java Code Sample"
-* Python: API-Sample.py
+* Python: 
+  * dbapi.py : Class that implements Data Buffet API
+  * _test_dbapi_on_my_system.py : Tests connection from your network to Data Buffet API
+  * dbapi_create_and_run_basket.py : Sample code to create, run, and download a basket
 * R: API-Sample.R
 * User guide PDF: databuffet-api-userguide.pdf
 * Enumerations for frequency, transformation, conversion type, and date options
@@ -34,4 +37,4 @@ Please contact the Data Buffet API team at Moody's Analytics at either:
 
 ## License
 
-(c) 2019 Moody's Analytics, Inc. All rights reserved.
+(c) 2024 Moody's Analytics, Inc. All rights reserved.
