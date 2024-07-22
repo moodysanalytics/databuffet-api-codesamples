@@ -32,7 +32,8 @@ get.series <- function(mnemonic, accKey, encKey,freq="0",trans="0"){
   #                                           "Signature" = signature,
   #                                           "TimeStamp" = timeStamp),
   #                  use_proxy("http:://myproxy",80))
-  
+  #ignore ssl certs
+  #response <- GET("https://example.com", config(ssl_verifypeer = FALSE))
   series <- jsonlite::fromJSON(httr::content(req, as="text"))
   return(series)
 }
