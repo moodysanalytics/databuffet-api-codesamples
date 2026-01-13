@@ -2,7 +2,6 @@
 # Data Buffet API
 # Code sample: Python
 # Description: Test connection to Data Buffet API
-# Usage 
 
 import sys
 import os

@@ -243,7 +243,7 @@ class DataBuffetAPI(BaseAPI):
         if js['lastHistory'] == 'N/A':
             ret.last_history = None
         else:
-            ret.last_history = js['lastHistory']
+            ret.last_history = pd.Period(js['lastHistory'], freq=ret.index.freq ).to_timestamp()
         return ret
         
     def get_series(self, mnemonic:str, freq:int=None, transformation:int=None, conversion:int=None, start:str=None, end:str=None, vintage:str=None, vintage_version:int=None):
@@ -319,7 +319,7 @@ class DataBuffetAPI(BaseAPI):
                     f.write(basket_data)    
             return basket_data
     
-    def _basket_option_payload(self, title:str=None, filetype=None, decimals:int=None, start:str=None, end:str=None, date_option=None, frequency=None):
+    def _basket_option_payload(self, title:str=None, filetype=None, decimals:int=None, start:str=None, end:str=None, date_option=None, frequency=None, showLastHistory:bool=None):
         ret = {}
         ret['options'] = {}
         if title is not None:
@@ -351,18 +351,20 @@ class DataBuffetAPI(BaseAPI):
             ret['dateStart'] = start
         if end is not None:
             ret['dateEnd'] = end
+        if showLastHistory is not None:
+            ret['options']['showLastHistory'] = showLastHistory
         return ret
 
-    def create_basket(self, title:str, filetype=None, decimals:int=None, start:str=None, end:str=None, date_option=None, frequency=None):
+    def create_basket(self, title:str, filetype=None, decimals:int=None, start:str=None, end:str=None, date_option=None, frequency=None, showLastHistory:bool=None):
         url = f'{self._base_uri}/baskets'
         pl = self._basket_option_payload(title,filetype)
         ret = self.request(url=url,method="post",payload=pl)
-        out = self.edit_basket_settings(basket_id=ret['basketId'],decimals=decimals,start=start,end=end,date_option=date_option,frequency=frequency)
+        out = self.edit_basket_settings(basket_id=ret['basketId'],decimals=decimals,start=start,end=end,date_option=date_option,frequency=frequency,showLastHistory=showLastHistory)
         return ret
     
-    def edit_basket_settings(self, basket_id:str, title:str=None, filetype=None, decimals:int=None, start:str=None, end:str=None, date_option=None, frequency=None):
+    def edit_basket_settings(self, basket_id:str, title:str=None, filetype=None, decimals:int=None, start:str=None, end:str=None, date_option=None, frequency=None, showLastHistory:bool=None):
         url = f'{self._base_uri}/baskets/{basket_id}'
-        pl = self._basket_option_payload(title,filetype,decimals,start,end,date_option,frequency)
+        pl = self._basket_option_payload(title,filetype,decimals,start,end,date_option,frequency,showLastHistory)
         ret = self.request(url=url,method="post",payload=pl)
         return ret
 
