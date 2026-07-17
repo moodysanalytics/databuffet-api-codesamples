@@ -327,3 +327,7 @@ venv/
 
 # VSCode settings
 *.vscode/
+
+# Java build output
+Java/build/
+*.class

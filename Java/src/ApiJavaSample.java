@@ -1,31 +1,21 @@
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Stream;
-
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 
 public class ApiJavaSample {
 
 	private static String UriEndpoint = "https://api.economy.com/data/v1/";
-    private static String AccessKeyHeader = "AccessKeyId";
-    private static String SignatureHeader = "Signature";
-    private static String TimeStampHeader = "TimeStamp";
     private static String AccessKey = ""; //Your Access Key
     private static String EncryptionKey = ""; //Your Encryption Key
 
@@ -35,44 +25,47 @@ public class ApiJavaSample {
 	public static void main(String[] args) throws Exception
 	{
 		
-		String DeskTopLocation = System.getProperty("user.home") + "/Desktop".toString(); //All basket files are currently saved to the Desktop       
+		String DeskTopLocation = System.getProperty("user.home") + "/Desktop".toString(); //All basket files are currently saved to the Desktop
         String BasketId = ""; //BasketId you want to run
-        String FileName = ""; //Name of File to be written once basket contents are retrieved		
-		
-		
-		GetBaskets(AccessKey, EncryptionKey); // Calls the GetBaskets method to return list of baskets & basket metadata
-		
+        String FileName = ""; //Name of File to be written once basket contents are retrieved
+
+		// Fetch an OAuth 2.0 bearer token once and reuse it for every request below.
+		// Tokens are valid for one hour.
+		String token = getOAuthToken(AccessKey, EncryptionKey);
+
+		GetBaskets(token); // Calls the GetBaskets method to return list of baskets & basket metadata
+
 		TimeUnit.SECONDS.sleep(1);
 
         if(BasketId == ""){
-            
+
             System.out.println("Check the program output and (Ctrl + F) the name of your basekt. Then, replace the BasketId variable with your BasketId");
 
         } else{
             Gson gson = new Gson();
-        String postResult = PostOrders(AccessKey, EncryptionKey,BasketId); // Calls the PostOrders method to POST an order to a basket (specified by BasketId)
+        String postResult = PostOrders(token, BasketId); // Calls the PostOrders method to POST an order to a basket (specified by BasketId)
         PostOrders postOrders = gson.fromJson(postResult, PostOrders.class);
-        
-        System.out.println(postOrders.orderId); // returns orderId from PostOrders method. 
-        
+
+        System.out.println(postOrders.orderId); // returns orderId from PostOrders method.
+
         PostOrders orderStatus;
         boolean orderCompleted = false;
-        while(!orderCompleted) // orderId is used to in loop to check if dataFinished attribute of order is not Null. When not Null, loop is exited. 
+        while(!orderCompleted) // orderId is used to in loop to check if dataFinished attribute of order is not Null. When not Null, loop is exited.
         {
             TimeUnit.SECONDS.sleep(1);
-            
-            String getOrdersResult = GetOrderStatus(AccessKey, EncryptionKey, postOrders.orderId);
+
+            String getOrdersResult = GetOrderStatus(token, postOrders.orderId);
             orderStatus = gson.fromJson(getOrdersResult, PostOrders.class);
-            
-            if(orderStatus.dateFinished != null) 
+
+            if(orderStatus.dateFinished != null)
             {
                 orderCompleted = true;
             }
         }
-        
+
         TimeUnit.SECONDS.sleep(1);
-        
-        InputStream orderStream = GetOrderStream(AccessKey, EncryptionKey, BasketId); // Calls GetOrderSteam method using BasketId to return ordered basket's contents
+
+        InputStream orderStream = GetOrderStream(token, BasketId); // Calls GetOrderSteam method using BasketId to return ordered basket's contents
         
         File targetFile = new File(DeskTopLocation + "\\" + FileName); 
     
@@ -87,23 +80,17 @@ public class ApiJavaSample {
 	
 	
 	    // GetBaskets Method will:
-		// 		Generate new timeStamp & signature
-		//		Make GET call to endpoint to retrieve basket list & basket metadata	
-		// 		Http call response as json object 
-	public static void GetBaskets(String accessKey, String encryptionKey) throws Exception
+		//		Make GET call to endpoint to retrieve basket list & basket metadata
+		// 		Http call response as json object
+	public static void GetBaskets(String token) throws Exception
     {
-		String timeStamp = ZonedDateTime.now(ZoneOffset.UTC).toString();
-		String signature = CreateHMACSignature(accessKey, encryptionKey, timeStamp);
-
         URL url = new URL(UriEndpoint + "baskets");
-        
+
         HttpURLConnection httpConnection = (HttpURLConnection) url.openConnection();
-        
+
         httpConnection.setRequestMethod("GET");
-        httpConnection.setRequestProperty(AccessKeyHeader, accessKey);
-        httpConnection.setRequestProperty(TimeStampHeader, timeStamp);
-        httpConnection.setRequestProperty(SignatureHeader, signature);
-        
+        httpConnection.setRequestProperty("Authorization", "Bearer " + token);
+
         try 
         {
             //Create a buffer for reading off the http input stream.
@@ -131,23 +118,17 @@ public class ApiJavaSample {
         
     }
 	    // PostOrders method  will :
-		// 		Generate new timestamp and signature 
 		// 		Make POST call to endpoint to order a basket (using BasketId)
         // 		Http call response is returned as JSON
 
-	public static String PostOrders(String accessKey, String encryptionKey, String BasketId) throws Exception
+	public static String PostOrders(String token, String BasketId) throws Exception
     {
-		String timeStamp = ZonedDateTime.now(ZoneOffset.UTC).toString();
-		String signature = CreateHMACSignature(accessKey, encryptionKey, timeStamp);
+        URL url = new URL(UriEndpoint + "orders" + "?id=" + BasketId + "&type=baskets&action=run"); // endpoint to call to
 
-        URL url = new URL(UriEndpoint + "orders" + "?id=" + BasketId + "&type=baskets&action=run"); // endpoint to call to 
-        
         HttpURLConnection httpConnection = (HttpURLConnection) url.openConnection();
-        
+
         httpConnection.setRequestMethod("POST");
-        httpConnection.setRequestProperty(AccessKeyHeader, accessKey);
-        httpConnection.setRequestProperty(TimeStampHeader, timeStamp);
-        httpConnection.setRequestProperty(SignatureHeader, signature);
+        httpConnection.setRequestProperty("Authorization", "Bearer " + token);
         httpConnection.setRequestProperty("Content-Length", "0");
         httpConnection.setDoOutput(true);
         
@@ -189,25 +170,19 @@ public class ApiJavaSample {
         }
 
     }
-	    // GetOrderStatus method  will: 
-		// 		Generate new timestamp & signature
-		//		Make GET call to endpoint to retrieve order metadata 
-		// 		http call response is returned as JSON 
-        // 		
-	public static String GetOrderStatus(String accessKey, String encryptionKey, String orderID) throws Exception
+	    // GetOrderStatus method  will:
+		//		Make GET call to endpoint to retrieve order metadata
+		// 		http call response is returned as JSON
+        //
+	public static String GetOrderStatus(String token, String orderID) throws Exception
     {
-		String timeStamp = ZonedDateTime.now(ZoneOffset.UTC).toString();
-		String signature = CreateHMACSignature(accessKey, encryptionKey, timeStamp);
+        URL url = new URL(UriEndpoint + "orders/" + orderID); // endpoint to call to
 
-        URL url = new URL(UriEndpoint + "orders/" + orderID); // endpoint to call to 
-        
         HttpURLConnection httpConnection = (HttpURLConnection) url.openConnection();
-        
+
         httpConnection.setRequestMethod("GET");
-        httpConnection.setRequestProperty(AccessKeyHeader, accessKey);
-        httpConnection.setRequestProperty(TimeStampHeader, timeStamp);
-        httpConnection.setRequestProperty(SignatureHeader, signature);
-        
+        httpConnection.setRequestProperty("Authorization", "Bearer " + token);
+
         try 
         {
             //Create a buffer for reading off the http input stream.
@@ -239,51 +214,61 @@ public class ApiJavaSample {
         
     }
 		
-		//CreateHMACSignature Method will: 
-		//		Create & return signature 
-        // 		This method is used in all preceeding methods except main method  
-	public static String CreateHMACSignature(String accessKey, String encryptionKey, String timeStamp)  throws Exception
+		// getOAuthToken Method will:
+		//		POST the access key and encryption key to the OAuth 2.0 token endpoint
+		//		Return the bearer access token, which is valid for one hour
+        // 		The returned token is passed to every other method as the "token" argument.
+	public static String getOAuthToken(String accessKey, String encryptionKey)  throws Exception
 	{
-       byte[] hmacData = null;
-       String signature = "",
-               combinedKey = accessKey + timeStamp;
-       //Create a new key from the encryption key passed in.
-       SecretKeySpec secretKey = new SecretKeySpec(encryptionKey.getBytes("UTF-8"), "HmacSHA256");
+        URL url = new URL(UriEndpoint + "oauth2/token");
 
-       //Create a new hmac sha-256 mac instance
-       Mac mac = Mac.getInstance("HmacSHA256");
-       //Initializes this Mac instance with the secret key
-       mac.init(secretKey);
-       //Computes the digest of this MAC on the bytes specified
-       hmacData = mac.doFinal(combinedKey.getBytes("UTF-8"));
+        HttpURLConnection httpConnection = (HttpURLConnection) url.openConnection();
 
-       //Take one byte at a time from the byte array and convert them to Hex, add them to the signature string.
-       for(byte b : hmacData){
-           signature += String.format("%02X", b);
-       }
-       return signature;
+        httpConnection.setRequestMethod("POST");
+        httpConnection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+        httpConnection.setDoOutput(true);
+
+        String body = "client_id=" + accessKey +
+                      "&client_secret=" + encryptionKey +
+                      "&grant_type=client_credentials";
+
+        DataOutputStream wr = new DataOutputStream(httpConnection.getOutputStream());
+        wr.writeBytes(body);
+        wr.flush();
+        wr.close();
+
+        //Create a buffer for reading off the http input stream.
+        BufferedReader inputBuffet = new BufferedReader(new InputStreamReader(httpConnection.getInputStream()));
+
+        String responseData = "";
+        String inputLine;
+        while ((inputLine = inputBuffet.readLine()) != null)
+        {
+            responseData += inputLine;
+        }
+        inputBuffet.close();
+
+        //Parse the JSON response and return the access token.
+        //Note: with gson 2.2.2, fromJson(..., JsonObject.class) returns an empty
+        //object, so use JsonParser to read the token out of the response.
+        JsonObject tokenResponse = new JsonParser().parse(responseData).getAsJsonObject();
+        return tokenResponse.get("access_token").getAsString();
    }
-	
-	
-	
-	    // GetOrderStream method will : 
-		// 		Generate new timeStamp & signature
+
+
+
+	    // GetOrderStream method will :
 		// 		Make GET call to endpoint to contents of ordered basket (using BasketId)
         // 		Assigns response to stream
-	public static InputStream GetOrderStream(String accessKey, String encryptionKey, String BasketId) throws Exception
+	public static InputStream GetOrderStream(String token, String BasketId) throws Exception
     {
-		String timeStamp = ZonedDateTime.now(ZoneOffset.UTC).toString();
-		String signature = CreateHMACSignature(accessKey, encryptionKey, timeStamp);
+        URL url = new URL(UriEndpoint + "orders"+ "?id=" + BasketId + "&type=baskets"); // endpoint to call to
 
-        URL url = new URL(UriEndpoint + "orders"+ "?id=" + BasketId + "&type=baskets"); // endpoint to call to 
-        
         HttpURLConnection httpConnection = (HttpURLConnection) url.openConnection();
-        
+
         httpConnection.setRequestMethod("GET");
-        httpConnection.setRequestProperty(AccessKeyHeader, accessKey);
-        httpConnection.setRequestProperty(TimeStampHeader, timeStamp);
-        httpConnection.setRequestProperty(SignatureHeader, signature);
-        
+        httpConnection.setRequestProperty("Authorization", "Bearer " + token);
+
         try 
         {
             //Create a buffer for reading off the http input stream.

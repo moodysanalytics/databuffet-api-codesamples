@@ -6,9 +6,6 @@ https://api.economy.com/data/v1/swagger/ui/index
 
 import os
 import json
-import datetime
-import hmac
-import hashlib
 import requests
 import time
 import urllib.parse
@@ -79,12 +76,11 @@ class DBFileType(Enum):
     TextDat2=8
 
 class BaseAPI:
-    def __init__(self,acc_key:str,enc_key:str,oauth:bool = True, proxies=None, debug:bool=False):
+    def __init__(self,acc_key:str,enc_key:str,proxies=None, debug:bool=False):
         self._base_uri = 'https://api.economy.com'
         self._acc_key = acc_key
         self._enc_key = enc_key
         self._token = 'bearer None'
-        self._oauth = oauth
         if proxies is not None:
             self._proxies = proxies
         else:
@@ -106,27 +102,14 @@ class BaseAPI:
         else:
             raise Exception(f'Error - Status : {status}, Msg: {response}')
             
-    def get_hmac_header(self):
-        timeStamp = datetime.datetime.strftime(
-            datetime.datetime.utcnow(), "%Y-%m-%dT%H:%M:%SZ")
-        payload = bytes(self._acc_key + timeStamp, "utf-8")
-        signature = hmac.new(bytes(self._enc_key,"utf-8"), payload, digestmod=hashlib.sha256)    
-        head = {'AccessKeyId':self._acc_key,'Signature':signature.hexdigest(),
-                'Content-Type':'application/json','timestamp':timeStamp}
-        return head
-
     def request(self, method:str, url:str, payload={}, max_tries:int=5):
         status = 0
         tries = 0
         ret = {}
-        if self._oauth:
-            if self._token == 'bearer None':
-                self._token = self.get_oauth_token()
+        if self._token == 'bearer None':
+            self._token = self.get_oauth_token()
         while (not ((status == 200) or ((status == 304) and (method.lower().strip() == "put")))) and (tries < max_tries+1):
-            if self._oauth:
-                head = {'Authorization':self._token}
-            else:
-                head = self.get_hmac_header()
+            head = {'Authorization':self._token}
             head['Content-Type'] = 'application/json'
             head['Accept'] = 'application/json'
             if method.lower().strip() == "get":
@@ -150,7 +133,7 @@ class BaseAPI:
             if status == 429:
                 print("Too many requests, wait 10 seconds and try again...")
                 time.sleep(10)
-            elif self._oauth and (status == 401):
+            elif status == 401:
                 print(self._token,status,response)
                 print("Get a new oauth token")
                 self._token = self.get_oauth_token()
@@ -167,8 +150,8 @@ class BaseAPI:
         return ret
 
 class DataBuffetAPI(BaseAPI):
-    def __init__(self,acc_key:str,enc_key:str,oauth:bool = True,proxies=None,debug:bool=False):
-        super().__init__(acc_key,enc_key,oauth,proxies,debug)
+    def __init__(self,acc_key:str,enc_key:str,proxies=None,debug:bool=False):
+        super().__init__(acc_key,enc_key,proxies,debug)
         self._base_uri = 'https://api.economy.com/data/v1'
         self._freq_dict = {'DAILY':'D','BUSINESS':'B','BUSINS':'B',\
                            'WSUNDAY':'W-SUN','WSUN':'W-SUN','WMON':'W-MON','WMONDAY':'W-MON','WTUESDAY':'W-TUE','WTUE':'W-TUE','WWEDNESDAY':'W-WED',\
