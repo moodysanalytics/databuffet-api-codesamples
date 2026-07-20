@@ -5,35 +5,46 @@
 # (c)2017 Moody's Analytics
  
 import requests
-import hashlib 
-import hmac
-import datetime
 import json
 import pandas as pd
 from time import sleep
 from io import BytesIO
-import binascii
 
 #####
-# Function: Make API request, including a freshly generated signature.
+# Function: Fetch an OAuth 2.0 bearer token. Fetch it once and reuse it for
+# the session; tokens are valid for one hour.
+#
+# Arguments:
+# 1. Your access key (used as the OAuth client_id).
+# 2. Your personal encryption key (used as the OAuth client_secret).
+#
+# Returns:
+# The access token string (pass it to api_call).
+def get_oauth_token(accKey, encKey):
+  url = "https://api.economy.com/data/v1/oauth2/token"
+  head = {"Content-Type": "application/x-www-form-urlencoded"}
+  data = ("client_id=" + accKey +
+          "&client_secret=" + encKey +
+          "&grant_type=client_credentials")
+  response = requests.post(url, headers=head, data=data)
+  if response.status_code != 200:
+    raise Exception("Error fetching OAuth token - Status: " +
+                    str(response.status_code) + ", Msg: " + response.text)
+  return json.loads(response.text)["access_token"]
+
+#####
+# Function: Make API request, authenticating with an OAuth 2.0 bearer token.
 #
 # Arguments:
 # 1. Part of the endpoint, i.e., the URL after "https://api.economy.com/data/v1/"
-# 2. Your access key.
-# 3. Your personal encryption key.
-# 4. Optional: default GET, but specify POST when requesting action from the API.
+# 2. Your OAuth bearer token (from get_oauth_token).
+# 3. Optional: default GET, but specify POST when requesting action from the API.
 #
 # Returns:
 # HTTP response object.
-def api_call(apiCommand, accKey, encKey, call_type="GET"):
+def api_call(apiCommand, token, call_type="GET"):
   url = "https://api.economy.com/data/v1/" + apiCommand
-  timeStamp = datetime.datetime.strftime(
-    datetime.datetime.utcnow(), "%Y-%m-%dT%H:%M:%SZ")
-  payload = bytes(accKey + timeStamp, "utf-8")
-  signature = hmac.new(bytes(encKey, "utf-8"), payload, digestmod=hashlib.sha256)
-  head = {"AccessKeyId":accKey, 
-          "Signature":signature.hexdigest(), 
-          "TimeStamp":timeStamp}
+  head = {"Authorization": "Bearer " + token}
   sleep(1)
   if call_type == "POST":
     response = requests.post(url, headers=head)
@@ -41,7 +52,7 @@ def api_call(apiCommand, accKey, encKey, call_type="GET"):
     response = requests.delete(url, headers=head)
   else:
     response = requests.get(url, headers=head)
-    
+
   return(response)
 
 #####
@@ -53,11 +64,14 @@ ACC_KEY = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 ENC_KEY = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 BASKET_NAME = "TEST BASKET NAME"
 
+# Fetch an OAuth token once and reuse it for every request below.
+TOKEN = get_oauth_token(ACC_KEY, ENC_KEY)
+
 #####
 # Identify a basket to execute:
 # 2. Get list of baskets.
 # 3. Extract the basket with a given name, and save its ID for later.
-baskets = pd.DataFrame(json.loads(api_call("baskets/", ACC_KEY, ENC_KEY).text))
+baskets = pd.DataFrame(json.loads(api_call("baskets/", TOKEN).text))
 basketId = baskets.loc[baskets["name"]==BASKET_NAME, "basketId"].item()
 print("Basket ID: " + basketId)
 print("Basket Name: " + BASKET_NAME)
@@ -65,7 +79,7 @@ print("Basket Name: " + BASKET_NAME)
 # 4. Execute a particular basket using its ID.
 # This requires that the optional argument "type" be set to "POST".
 call = ("orders?type=baskets&action=run&id=" + basketId)
-order = api_call(call, ACC_KEY, ENC_KEY, call_type="POST")
+order = api_call(call, TOKEN, call_type="POST")
 orderId = order.text[12:48]
 print("Order ID: " + orderId)
 
@@ -76,14 +90,14 @@ call = "orders/" + orderId
 processing_check = True
 while processing_check:
     sleep(5)
-    status = api_call(call, ACC_KEY, ENC_KEY)
+    status = api_call(call, TOKEN)
     processing_check = json.loads(status.content.decode('utf-8'))['processing']
     print('processing: ' + str(processing_check))  
   
   
 # 6. Download completed output.
 new_call = ("orders?type=baskets&id=" + basketId)
-get_basket = api_call(new_call, ACC_KEY, ENC_KEY)
+get_basket = api_call(new_call, TOKEN)
 
 ## Choose one from below two line of codes:
 get_basket = (str(get_basket.content).split("\\r\\n"))   ## This line of code for csv files

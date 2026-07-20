@@ -2,7 +2,9 @@
 
 ## Introduction
 
-Data Buffet (DataBuffet.com) is the Moody's Analytics repository of international and subnational economic and demographic time series data. We provide several means of manual and automatic access that you can integrate with your workflow, among them, the Data Buffet API (application program interface). The API uses HMAC authentication and JSON responses, and is agnostic regarding the client's operating system and programming language. The API is throttled (rate-limited) to one request per second and one gigabyte of data per month.
+Data Buffet (DataBuffet.com) is the Moody's Analytics repository of international and subnational economic and demographic time series data. We provide several means of manual and automatic access that you can integrate with your workflow, among them, the Data Buffet API (application program interface). The API uses OAuth 2.0 authentication and JSON responses, and is agnostic regarding the client's operating system and programming language. The API is throttled (rate-limited) to one request per second and one gigabyte of data per month.
+
+> **Note:** HMAC signature authentication is deprecated and will stop working on **September 30, 2026**. All samples in this repository use OAuth 2.0; migrate any HMAC-based integration before that date.
 
 The code samples in this GitHub repository provide a starting point to write your custom software solutions to retrieve individual series or baskets via the API. There are four languages: C#, Java, Python and R. The first two languages are projects (multiple files in a folder structure) that can be opened in an IDE (Microsoft Visual Studio and Eclipse, respectively); the latter two are single source files. The content of the samples, and the set of languages, are subject to change.
 

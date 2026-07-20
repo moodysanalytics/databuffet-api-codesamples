@@ -2,7 +2,6 @@
 using System.IO;
 using System.Net;
 using System.Text;
-using System.Security.Cryptography;
 using Newtonsoft.Json;
 // Newtonsoft.Json used for serializing & deserializing JSON objects
 
@@ -11,9 +10,6 @@ namespace APICodeSample
     class Program
     {
         private const string UriEndpoint = "https://api.economy.com/data/v1/";
-        private const string AccessKeyHeader = "AccessKeyId";
-        private const string SignatureHeader = "Signature";
-        private const string TimeStampHeader = "TimeStamp";
         private const string AccessKey = ""; // Enter Your Access Key
         private const string EncryptionKey = ""; // Enter Your Encryption Key
 
@@ -26,12 +22,19 @@ namespace APICodeSample
             string FileName = ""; // Enter Filename that basket contents will be written to
             string DesktopLocation = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory); //All logs and basket files are currently saved to the Desktop
 
+            // Apps targeting .NET Framework 4.5.2 default to TLS 1.0, which the API rejects.
+            // Opt into TLS 1.2 before making any request.
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
 
-            string singleSeries = GetSingleSeries(AccessKey, EncryptionKey, "ET.IUSA");
+            // Fetch an OAuth 2.0 bearer token once and reuse it for every request below.
+            // Tokens are valid for one hour.
+            string token = GetOAuthToken(AccessKey, EncryptionKey);
+
+            string singleSeries = GetSingleSeries(token, "ET.IUSA");
             var jsonSingleSeries = JsonConvert.DeserializeObject(singleSeries);
             File.WriteAllText(String.Format(@"{0}\SingleSeries.json", DesktopLocation), JsonConvert.SerializeObject(jsonSingleSeries, Formatting.Indented));
 
-            string result = GetBaskets(AccessKey, EncryptionKey); // Calls to GetBaskets Method for list of Baskets &  basket metadata under account
+            string result = GetBaskets(token); // Calls to GetBaskets Method for list of Baskets &  basket metadata under account
             var jsonObject = JsonConvert.DeserializeObject(result);
             File.WriteAllText(String.Format(@"{0}\Baskets.json", DesktopLocation), JsonConvert.SerializeObject(jsonObject, Formatting.Indented));
 
@@ -39,7 +42,7 @@ namespace APICodeSample
 
             PostOrders postObject = new PostOrders();
 
-            string postResult = PostOrders(AccessKey, EncryptionKey, BasketId); // Calls PostOrders method to post an order to basket (specified by BasketId)
+            string postResult = PostOrders(token, BasketId); // Calls PostOrders method to post an order to basket (specified by BasketId)
             postObject = JsonConvert.DeserializeObject<PostOrders>(postResult);
             File.WriteAllText(String.Format(@"{0}\Execute.json", DesktopLocation), JsonConvert.SerializeObject(postObject, Formatting.Indented));
 
@@ -49,7 +52,7 @@ namespace APICodeSample
             while (!orderCompleted) // while loop to check status of the order. When order's dateFinished is not Null, loop is exited. 
             {
                 System.Threading.Thread.Sleep(1000);
-                string getOrdersResult = GetOrderStatus(AccessKey, EncryptionKey, postObject.orderId); // uses the orderId returned from call to PostOrders method to check if order is done
+                string getOrdersResult = GetOrderStatus(token, postObject.orderId); // uses the orderId returned from call to PostOrders method to check if order is done
                 orderStatus = JsonConvert.DeserializeObject<PostOrders>(getOrdersResult);
                 //File.WriteAllText(String.Format(@"{0}\checkOrderStatus.json", DesktopLocation), JsonConvert.SerializeObject(orderStatus, Formatting.Indented));
 
@@ -61,7 +64,7 @@ namespace APICodeSample
 
             System.Threading.Thread.Sleep(1000);
 
-            Stream orderStream = GetOrderStream(AccessKey, EncryptionKey, BasketId); // Calls GetOrderSteam method using BasketId to return ordered basket's contents
+            Stream orderStream = GetOrderStream(token, BasketId); // Calls GetOrderSteam method using BasketId to return ordered basket's contents
 
             using (var fs = new FileStream(String.Format(@"{0}\{1}", DesktopLocation, FileName), FileMode.Create))
             {
@@ -74,14 +77,11 @@ namespace APICodeSample
         /// <summary>
         /// Returns a data series in JSON
         /// </summary>
-        /// <param name="accessKey">Access Key</param>
-        /// <param name="encryptionKey">Encryption Key</param>
+        /// <param name="token">OAuth 2.0 bearer token</param>
         /// <param name="mnemonic">Mnemonic - the data series' unique identifier</param>
         /// <returns></returns>
-        public static string GetSingleSeries(string accessKey, string encryptionKey, string mnemonic)
+        public static string GetSingleSeries(string token, string mnemonic)
         {
-            string timeStamp = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
-            string signature = CreateHMACSignature(accessKey, encryptionKey, timeStamp);
             string json;
 
             // encode mnemonic to make it url safe
@@ -91,9 +91,7 @@ namespace APICodeSample
             Uri uri = new Uri(UriEndpoint + "series?m=" + mnemonic);
             WebRequest webRequest = WebRequest.Create(uri);
             webRequest.Method = "GET";
-            webRequest.Headers.Add(AccessKeyHeader, accessKey);
-            webRequest.Headers.Add(TimeStampHeader, timeStamp);
-            webRequest.Headers.Add(SignatureHeader, signature);
+            webRequest.Headers.Add("Authorization", "Bearer " + token);
 
             WebResponse webResponse = webRequest.GetResponse();
 
@@ -109,21 +107,16 @@ namespace APICodeSample
         }
 
         // GetBaskets Method will:
-        // Generate new timeStamp & signature
-        // Make GET call to endpoint to retrieve basket list & basket metadata	
-        // Http call response as json object 
-        public static string GetBaskets(string accessKey, string encryptionKey)
+        // Make GET call to endpoint to retrieve basket list & basket metadata
+        // Http call response as json object
+        public static string GetBaskets(string token)
         {
-            string timeStamp = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
-            string signature = CreateHMACSignature(accessKey, encryptionKey, timeStamp);
             string json;
 
             Uri uri = new Uri(UriEndpoint + "baskets");
             WebRequest webRequest = WebRequest.Create(uri);
             webRequest.Method = "GET";
-            webRequest.Headers.Add(AccessKeyHeader, accessKey);
-            webRequest.Headers.Add(TimeStampHeader, timeStamp);
-            webRequest.Headers.Add(SignatureHeader, signature);
+            webRequest.Headers.Add("Authorization", "Bearer " + token);
 
             WebResponse webResponse = webRequest.GetResponse();
 
@@ -140,22 +133,17 @@ namespace APICodeSample
 
 
         // PostOrders method  will :
-        // Generate new timestamp and signature 
         // Make POST call to endpoint to order a basket (using BasketId)
         // Http call response is returned as JSON
 
-        public static string PostOrders(string accessKey, string encryptionKey, string BasketId)
+        public static string PostOrders(string token, string BasketId)
         {
-            string timeStamp = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
-            string signature = CreateHMACSignature(accessKey, encryptionKey, timeStamp);
             string json;
 
             Uri uri = new Uri(UriEndpoint + "orders" + "?id=" + BasketId + "&type=baskets&action=run");
             WebRequest webRequest = WebRequest.Create(uri);
             webRequest.Method = "POST";
-            webRequest.Headers.Add(AccessKeyHeader, accessKey);
-            webRequest.Headers.Add(TimeStampHeader, timeStamp);
-            webRequest.Headers.Add(SignatureHeader, signature);
+            webRequest.Headers.Add("Authorization", "Bearer " + token);
             webRequest.ContentLength = 0;
 
             WebResponse webResponse = webRequest.GetResponse();
@@ -171,23 +159,18 @@ namespace APICodeSample
             return json;
         }
 
-        // GetOrderStatus method  will: 
-        // Generate new timestamp & signature
-        // Make GET call to endpoint to retrieve order metadata 
-        // http call response is returned as JSON 
-        // 
-        public static string GetOrderStatus(string accessKey, string encryptionKey, string orderId)
+        // GetOrderStatus method  will:
+        // Make GET call to endpoint to retrieve order metadata
+        // http call response is returned as JSON
+        //
+        public static string GetOrderStatus(string token, string orderId)
         {
-            string timeStamp = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
-            string signature = CreateHMACSignature(accessKey, encryptionKey, timeStamp);
             string json;
 
             Uri uri = new Uri(UriEndpoint + "orders/" + orderId);
             WebRequest webRequest = WebRequest.Create(uri);
             webRequest.Method = "GET";
-            webRequest.Headers.Add(AccessKeyHeader, accessKey);
-            webRequest.Headers.Add(TimeStampHeader, timeStamp);
-            webRequest.Headers.Add(SignatureHeader, signature);
+            webRequest.Headers.Add("Authorization", "Bearer " + token);
 
             WebResponse webResponse = webRequest.GetResponse();
 
@@ -201,21 +184,15 @@ namespace APICodeSample
 
             return json;
         }
-        // GetOrderStream method will : 
-        // 		Generate new timeStamp & signature
+        // GetOrderStream method will :
         // 		Make GET call to endpoint to contents of ordered basket (using BasketId)
         // 		Assigns response to stream
-        public static Stream GetOrderStream(string accessKey, string encryptionKey, string BasketId)
+        public static Stream GetOrderStream(string token, string BasketId)
         {
-            string timeStamp = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
-            string signature = CreateHMACSignature(accessKey, encryptionKey, timeStamp);
-
             Uri uri = new Uri(UriEndpoint + "orders" + "?id=" + BasketId + "&type=baskets");
             WebRequest webRequest = WebRequest.Create(uri);
             webRequest.Method = "GET";
-            webRequest.Headers.Add(AccessKeyHeader, accessKey);
-            webRequest.Headers.Add(TimeStampHeader, timeStamp);
-            webRequest.Headers.Add(SignatureHeader, signature);
+            webRequest.Headers.Add("Authorization", "Bearer " + token);
 
             WebResponse webResponse = webRequest.GetResponse();
 
@@ -225,23 +202,42 @@ namespace APICodeSample
             return stream;
         }
 
-        //CreateHMACSignature Method will: 
-        //		Create & return signature 
-        // 		This method is used in all preceeding methods except main method  
-        public static string CreateHMACSignature(string accessKey, string encryptionKey, string timeStamp)
+        // GetOAuthToken method will:
+        //		POST the access key and encryption key to the OAuth 2.0 token endpoint
+        //		Return the bearer access token, which is valid for one hour
+        // The returned token is passed to every other method as the "token" argument.
+        public static string GetOAuthToken(string accessKey, string encryptionKey)
         {
-            string signature = string.Empty;
-            byte[] keyBytes = Encoding.UTF8.GetBytes(encryptionKey);
-            using (HMAC hmac = new HMACSHA256(keyBytes))
+            string json;
+            string body = "client_id=" + accessKey +
+                          "&client_secret=" + encryptionKey +
+                          "&grant_type=client_credentials";
+            byte[] bodyBytes = Encoding.UTF8.GetBytes(body);
+
+            Uri uri = new Uri(UriEndpoint + "oauth2/token");
+            WebRequest webRequest = WebRequest.Create(uri);
+            webRequest.Method = "POST";
+            webRequest.ContentType = "application/x-www-form-urlencoded";
+            webRequest.ContentLength = bodyBytes.Length;
+
+            using (Stream requestStream = webRequest.GetRequestStream())
             {
-                byte[] bytesToHash = Encoding.UTF8.GetBytes(accessKey + timeStamp);
-                byte[] hashedBytes = hmac.ComputeHash(bytesToHash);
-                for (int i = 0; i < hashedBytes.Length; i++)
+                requestStream.Write(bodyBytes, 0, bodyBytes.Length);
+            }
+
+            WebResponse webResponse = webRequest.GetResponse();
+
+            using (Stream stream = webResponse.GetResponseStream())
+            {
+                using (StreamReader streamReader = new StreamReader(stream))
                 {
-                    signature += hashedBytes[i].ToString("X2");
+                    json = streamReader.ReadToEnd();
                 }
             }
-            return signature;
+
+            // Deserialize the JSON response and return the access_token field.
+            dynamic tokenResponse = JsonConvert.DeserializeObject(json);
+            return (string)tokenResponse.access_token;
         }
 
 
